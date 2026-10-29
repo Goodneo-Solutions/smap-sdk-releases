@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap for OpenLayers</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.11.0/ol.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.css">
+  <style>
+    body { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+    .bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; flex-wrap: wrap; }
+    .maps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 12px 12px; }
+    .maps > div { height: 70vh; border: 1px solid #cbd5e1; border-radius: 6px; position: relative; }
+    h2 { font-size: 14px; margin: 0 12px; }
+    @media (max-width: 800px) { .maps { grid-template-columns: 1fr; } }
+  </style>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_… -->
+  <script type="importmap">
+  {
+    "imports": {
+      "ol/": "https://cdn.jsdelivr.net/npm/ol@10.11.0/",
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs",
+      "@superrouteca/smap-openlayers": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-openlayers@1.2.11/src/index.js",
+      "@superrouteca/smap-openlayers/on-smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-openlayers@1.2.11/src/on-smap.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="bar">
+    <label>Scheme <select id="scheme"><option>light</option><option>white</option><option>grayscale</option><option>dark</option><option>black</option></select></label>
+    <label>Language <select id="lang"><option>en</option><option>fr</option><option>de</option><option>zh-Hans</option></select></label>
+    <label><input type="checkbox" id="raster"> Raster tiles</label>
+    <button id="rotate">Rotate</button>
+  </div>
+  <h2>sMap in OpenLayers (left) · OpenLayers sources on an sMap map (right)</h2>
+  <div class="maps"><div id="ol"></div><div id="smap"></div></div>
+  <script type="module">
+    import OlMap from 'ol/Map.js';
+    import View from 'ol/View.js';
+    import VectorLayer from 'ol/layer/Vector.js';
+    import VectorSource from 'ol/source/Vector.js';
+    import TileLayer from 'ol/layer/Tile.js';
+    import OSM from 'ol/source/OSM.js';
+    import Feature from 'ol/Feature.js';
+    import Point from 'ol/geom/Point.js';
+    import { Style, Circle, Fill, Stroke } from 'ol/style.js';
+    import { fromLonLat } from 'ol/proj.js';
+    import { Map as SMap, popupTemplate } from '@superrouteca/smap';
+    import { smapLayer, smapRasterLayer } from '@superrouteca/smap-openlayers';
+    import { addOpenLayersLayer } from '@superrouteca/smap-openlayers/on-smap';
+
+    const apiKey = new URLSearchParams(location.search).get('key') || undefined;
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, n: 1, status: '#16a34a', name: 'City Hall' },
+      { lng: -79.3871, lat: 43.6426, n: 2, status: '#f97316', name: 'CN Tower' },
+      { lng: -79.3957, lat: 43.6677, n: 3, status: '#2563eb', name: 'Queen’s Park' },
+      { lng: -79.3806, lat: 43.6629, n: 4, status: '#e11d48', name: 'Church St' },
+    ];
+
+    // ① sMap in OpenLayers
+    let base = smapLayer({ apiKey, style: 'light', language: 'en' });
+    const decorate = (layer) => layer.addPoints('stops', stops, {
+      marker: { fill: { property: 'status' }, border: '#1e293b', text: { property: 'n' } },
+      popup: popupTemplate('<b>{n}</b> {name}'),
+    });
+    decorate(base);
+    const own = new VectorLayer({
+      source: new VectorSource({ features: [new Feature(new Point(fromLonLat([-79.3817, 43.6487])))] }),
+      style: new Style({ image: new Circle({ radius: 8, fill: new Fill({ color: '#7c3aed' }), stroke: new Stroke({ color: '#fff', width: 2 }) }) }),
+    });
+    const map = new OlMap({ target: 'ol', layers: [base, own], view: new View({ center: fromLonLat([-79.387, 43.655]), zoom: 14 }) });
+
+    const scheme = document.getElementById('scheme');
+    const lang = document.getElementById('lang');
+    scheme.onchange = () => base.setStyle(scheme.value);
+    lang.onchange = () => base.setLanguage(lang.value);
+    document.getElementById('rotate').onclick = () => map.getView().animate({ rotation: map.getView().getRotation() + Math.PI / 6 });
+    document.getElementById('raster').onchange = (e) => {
+      map.removeLayer(base);
+      base = e.target.checked ? smapRasterLayer({ apiKey, style: scheme.value, language: lang.value }) : smapLayer({ apiKey, style: scheme.value, language: lang.value });
+      if (!e.target.checked) { decorate(base); }
+      map.getLayers().insertAt(0, base);
+    };
+
+    // ② OpenLayers sources on an sMap map
+    const smap = new SMap({ container: 'smap', apiKey, style: 'grayscale', language: 'en', center: [-79.387, 43.655], zoom: 12 });
+    await smap.ready;
+    await addOpenLayersLayer(smap, 'osm', new TileLayer({ source: new OSM(), opacity: 0.35 }), { slot: 'roads' });
+    await addOpenLayersLayer(smap, 'mine', new VectorLayer({
+      source: new VectorSource({ features: stops.map((s) => new Feature({ geometry: new Point(fromLonLat([s.lng, s.lat])), name: s.name })) }),
+      style: new Style({ image: new Circle({ radius: 7, fill: new Fill({ color: '#e11d48' }) }) }),
+    }), { popup: popupTemplate('{name}') });
+  </script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap and CesiumJS</title>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_…[&style=dark][&lang=fr][&wmts=1] -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
+  <style>html, body, #globe { margin: 0; height: 100%; }</style>
+  <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/';</script>
+  <script type="importmap">
+  {
+    "imports": {
+      "cesium": "https://cdn.jsdelivr.net/npm/cesium@1.146.0/+esm",
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="globe"></div>
+  <script type="module">
+    import { Viewer, Cartesian3 } from 'cesium';
+    import { createBaseLayer, addSMapData } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-cesium@1.2.11/src/index.js';
+
+    const q = new URLSearchParams(location.search);
+    const access = { apiKey: q.get('key') || undefined, baseUrl: q.get('base') || undefined };
+    const viewer = new Viewer('globe', {
+      baseLayer: createBaseLayer({ ...access, style: q.get('style') || 'light', language: q.get('lang') || navigator.language, wmts: q.has('wmts'), retina: devicePixelRatio > 1 }),
+      baseLayerPicker: false, geocoder: false, timeline: false, animation: false,
+    });
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, name: 'City Hall', seq: 1, color: '#e6194b' },
+      { lng: -79.3871, lat: 43.6426, name: 'CN Tower', seq: 2, color: '#3cb44b' },
+      { lng: -79.3957, lat: 43.6677, name: 'Queen\'s Park', seq: 3, color: '#4363d8' },
+    ];
+    await addSMapData(viewer, 'route', { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) }, { color: '#2563eb', width: 4 });
+    await addSMapData(viewer, 'stops', stops, { marker: { text: { property: 'seq' }, border: { property: 'color' } }, label: 'name', popup: (p) => '<b>' + p.name + '</b>' });
+    viewer.camera.flyTo({ destination: Cartesian3.fromDegrees(-79.39, 43.62, 6000), orientation: { pitch: -0.7 }, duration: 0 });
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">sMap example</string>
+    <string name="buildings_3d">3D buildings</string>
+    <string name="offline_download">Keep offline</string>
+    <string name="offline_show">Show offline</string>
+    <string name="offline_online">Show online</string>
+    <string name="offline_progress">Downloading %1$d %%</string>
+    <string name="legend">Orange: route · Purple: block</string>
+    <string name="legend_label">Legend</string>
+    <string name="stops_label">Stops</string>
+    <string name="offline_ready">Downloaded: %1$d tiles, %2$d MB</string>
+</resources>

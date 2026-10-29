@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap plan editor</title>
+  <!-- Open this file from a local web server, e.g. `npx serve .` in this folder. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.css">
+  <style>
+    html, body { margin: 0; height: 100%; font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    #map { position: absolute; inset: 0 0 44px 0; }
+    #bar { position: absolute; left: 0; right: 0; bottom: 0; height: 44px; display: flex; gap: 8px; align-items: center; padding: 0 10px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+    #log { margin-left: auto; color: #475569; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="bar">
+    <button type="button" id="add">Insert a new order</button>
+    <button type="button" id="expire">Expire the snapshot</button>
+    <select id="lang">
+      <option>en</option><option>zh-Hans</option><option>zh-Hant</option><option>de</option><option>es</option><option>fr</option>
+      <option>it</option><option>nl</option><option>pt</option><option>sr</option><option>hu</option><option>pl</option><option>sk</option><option>cs</option>
+    </select>
+    <span id="log"></span>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.js"></script>
+  <script>
+    // A stand-in for the Open Platform's plan calls, in the page: straight-line distances at 30 km/h, five minutes a
+    // stop. A real page leaves out `fetch` and `baseUrl` and passes the credentials its own server gives.
+    var snapshots = 0;
+    var current = null;
+    function km(a, b) {
+      var r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLng = (b.lng - a.lng) * r;
+      var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      return 6371 * 2 * Math.asin(Math.sqrt(h));
+    }
+    function price(body, routes) {
+      var jobs = {}; body.jobs.concat(body.insert || []).forEach(function (j) { jobs[j.id] = j; });
+      var vehicles = {}; body.vehicles.forEach(function (v) { vehicles[v.id] = v; });
+      var out = routes.map(function (r) {
+        var v = vehicles[r.vehicle_id], at = v.start, t = 9 * 3600, dist = 0, drive = 0;
+        var stops = [{ type: 'start', departure: '2026-10-28T09:00:00-04:00' }];
+        r.stops.forEach(function (id, i) {
+          var d = km(at, jobs[id].location); dist += d; drive += d / 30 * 3600; t += d / 30 * 3600;
+          var hh = Math.floor(t / 3600), mm = Math.floor(t % 3600 / 60);
+          stops.push({ type: 'job', id: id, sequence: i + 1, reachable: true, arrival: '2026-10-28T' + (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm + ':00-04:00', leg_distance_meters: Math.round(d * 1000) });
+          t += 300; at = jobs[id].location;
+        });
+        var back = km(at, v.start); dist += back; drive += back / 30 * 3600;
+        stops.push({ type: 'end' });
+        var violations = r.stops.length > 6 ? [{ rule: 'max_tasks', tasks: r.stops.length, limit: 6 }] : [];
+        return { vehicle_id: r.vehicle_id, stop_count: r.stops.length + 2, task_count: r.stops.length, distance_meters: Math.round(dist * 1000), duration_seconds: Math.round(drive), unreachable_legs: 0, violations: violations, violation_count: violations.length, stops: stops };
+      });
+      var on = {}; routes.forEach(function (r) { r.stops.forEach(function (s) { on[s] = true; }); });
+      return {
+        routes: out,
+        summary: { routes: out.length, tasks: out.reduce(function (n, r) { return n + r.task_count; }, 0), distance_meters: out.reduce(function (n, r) { return n + r.distance_meters; }, 0), duration_seconds: out.reduce(function (n, r) { return n + r.duration_seconds; }, 0), unreachable_legs: 0, violations: out.reduce(function (n, r) { return n + r.violation_count; }, 0) },
+        plan: { routes: routes, unassigned: Object.keys(jobs).filter(function (id) { return !on[id]; }) },
+      };
+    }
+    function routeKm(body, r) { return price(body, [r]).summary.distance_meters; }
+    function standInFetch(url, init) {
+      var path = url.replace('https://open.example', ''), body = init.body ? JSON.parse(init.body) : null, header = null, data;
+      if (path === '/v1/plan/matrix') { snapshots += 1; current = 'local.' + snapshots; data = { matrix: current, expires_at: null, node: 'local' }; }
+      else if (init.method === 'DELETE') { data = { closed: true }; }
+      else {
+        if (body.matrix) { header = body.matrix === current ? 'used' : 'expired'; }
+        var routes = body.routes.map(function (r) { return { vehicle_id: r.vehicle_id, stops: r.stops.slice() }; });
+        var route = function (v) { var r = routes.filter(function (x) { return x.vehicle_id === v; })[0]; if (!r) { r = { vehicle_id: v, stops: [] }; routes.push(r); } return r; };
+        var extra = {};
+        if (path === '/v1/plan/resequence') { route(body.vehicle_id).stops = body.stops.slice(); extra.resequence = { vehicle_id: body.vehicle_id, changed: true }; }
+        if (path === '/v1/plan/move') {
+          routes.forEach(function (r) { r.stops = r.stops.filter(function (s) { return body.stops.indexOf(s) < 0; }); });
+          var t = route(body.vehicle_id), at = body.position ? body.position - 1 : t.stops.length;
+          t.stops.splice.apply(t.stops, [at, 0].concat(body.stops));
+          extra.move = { vehicle_id: body.vehicle_id, position: at + 1, stops: body.stops, from: [], feasible: true, violations: 0 };
+        }
+        if (path === '/v1/plan/remove') { routes.forEach(function (r) { r.stops = r.stops.filter(function (s) { return body.stops.indexOf(s) < 0; }); }); extra.removed = body.stops.map(function (id) { return { id: id }; }); }
+        if (path === '/v1/plan/insert') {
+          extra.insert = body.insert.map(function (job) {
+            body.vehicles.forEach(function (v) { route(v.id); });
+            var choices = [];
+            routes.forEach(function (r) {
+              var before = routeKm(body, r);
+              for (var p = 0; p <= r.stops.length; p++) {
+                var s = r.stops.slice(); s.splice(p, 0, job.id);
+                var added = routeKm(body, { vehicle_id: r.vehicle_id, stops: s }) - before;
+                choices.push({ feasible: s.length <= 6, vehicle_id: r.vehicle_id, position: p + 1, added_distance_meters: added, added_duration_seconds: Math.round(added / 1000 / 30 * 3600 + 300), arrival: null, violations: s.length <= 6 ? undefined : [{ rule: 'max_tasks' }] });
+              }
+            });
+            choices.sort(function (a, b) { return (b.feasible - a.feasible) || (a.added_distance_meters - b.added_distance_meters); });
+            choices = choices.slice(0, body.limit || 3);
+            route(choices[0].vehicle_id).stops.splice(choices[0].position - 1, 0, job.id);
+            return { job: job.id, placed: true, choices: choices };
+          });
+        }
+        if (path === '/v1/plan/refine') {
+          var moved = 0;
+          routes.forEach(function (r) {
+            if (body.vehicle_ids && body.vehicle_ids.indexOf(r.vehicle_id) < 0) { return; }
+            var jobs = {}; body.jobs.forEach(function (j) { jobs[j.id] = j; });
+            var frozen = r.stops.filter(function (s) { return (body.freeze || []).indexOf(s) >= 0; });
+            var left = r.stops.filter(function (s) { return frozen.indexOf(s) < 0; });
+            var at = frozen.length ? jobs[frozen[frozen.length - 1]].location : body.vehicles.filter(function (v) { return v.id === r.vehicle_id; })[0].start;
+            var order = frozen.slice();
+            while (left.length) { left.sort(function (a, b) { return km(at, jobs[a].location) - km(at, jobs[b].location); }); var n = left.shift(); order.push(n); at = jobs[n].location; }
+            order.forEach(function (s, i) { if (r.stops[i] !== s) { moved += 1; } });
+            if (routeKm(body, { vehicle_id: r.vehicle_id, stops: order }) < routeKm(body, r)) { r.stops = order; } else { moved = 0; }
+          });
+          extra.refine = { changed: moved > 0, moved: moved, vehicle_ids: [], freeze: body.freeze || [], before: {} };
+        }
+        data = Object.assign(price(body, routes), extra);
+        if (path === '/v1/plan/recost') { delete data.plan; }
+      }
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          resolve({ status: 200, ok: true, headers: { get: function (k) { return k === 'X-Plan-Matrix' ? header : null; } }, text: function () { return Promise.resolve(JSON.stringify({ data: data })); } });
+        }, 150);
+      });
+    }
+
+    var depot = { lat: 45.5017, lng: -73.5673 };
+    var jobs = [];
+    for (var i = 1; i <= 14; i++) { jobs.push({ id: 'order-' + (1000 + i), location: { lat: 45.47 + (i * 37 % 11) / 150, lng: -73.62 + (i * 53 % 13) / 110 }, service_seconds: 300 }); }
+    var plan = {
+      region: 'NA', profile: 'car',
+      vehicles: [{ id: 'van-1', start: depot, return_to_start: true }, { id: 'van-2', start: depot, return_to_start: true }, { id: 'van-3', start: depot, return_to_start: true }],
+      jobs: jobs,
+      routes: [{ vehicle_id: 'van-1', stops: jobs.slice(0, 6).map(function (j) { return j.id; }) }, { vehicle_id: 'van-2', stops: jobs.slice(6, 12).map(function (j) { return j.id; }) }],
+    };
+
+    var map = new sMap.Map({
+      container: 'map', nearest: false, center: [depot.lng, depot.lat], zoom: 12,
+      // A plain background, so the example needs no map key; a real page uses an sMap style.
+      style: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef2f7' } }] },
+    });
+    var editor = map.planEditor({
+      baseUrl: 'https://open.example', fetch: standInFetch,
+      credentials: { token: function () { return Promise.resolve('example-token'); } },
+      plan: plan, language: 'en',
+    });
+    var log = document.getElementById('log');
+    editor.on('change', function (e) { if (e.result && e.result.summary) { log.textContent = e.kind + ': ' + (e.result.summary.distance_meters / 1000).toFixed(1) + ' km'; } });
+    editor.on('snapshot', function (e) { log.textContent = 'snapshot ' + e.status + (e.matrix ? ' ' + e.matrix : ''); });
+    editor.on('error', function (e) { log.textContent = 'error ' + (e.error.code || e.error.message); });
+    var n = 0;
+    document.getElementById('add').addEventListener('click', function () {
+      n += 1;
+      editor.insert({ id: 'new-' + n, location: { lat: 45.48 + Math.random() * 0.07, lng: -73.62 + Math.random() * 0.1 }, service_seconds: 300 }).catch(function () {});
+    });
+    document.getElementById('expire').addEventListener('click', function () { current = null; log.textContent = 'the next answer says expired'; });
+    document.getElementById('lang').addEventListener('change', function (e) { if (editor.panel) { editor.panel.setLanguage(e.target.value); } });
+  </script>
+</body>
+</html>

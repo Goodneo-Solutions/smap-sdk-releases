@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap and deck.gl</title>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_…&mode=vector|raster|interleaved -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.css">
+  <style>
+    html, body { margin: 0; height: 100%; font: 14px Helvetica, Arial, sans-serif; }
+    #map { position: absolute; inset: 0; }
+    #bar { position: absolute; top: 10px; left: 10px; z-index: 2; background: #fff; padding: 6px 10px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "@deck.gl/core": "https://cdn.jsdelivr.net/npm/@deck.gl/core@9.4.0/+esm",
+      "@deck.gl/layers": "https://cdn.jsdelivr.net/npm/@deck.gl/layers@9.4.0/+esm",
+      "@deck.gl/geo-layers": "https://cdn.jsdelivr.net/npm/@deck.gl/geo-layers@9.4.0/+esm",
+      "@deck.gl/mapbox": "https://cdn.jsdelivr.net/npm/@deck.gl/mapbox@9.4.0/+esm",
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="bar">
+    <a href="?mode=vector">deck.gl vector</a> · <a href="?mode=raster">deck.gl raster</a> · <a href="?mode=interleaved">interleaved</a>
+    · <select id="style"><option>light</option><option>white</option><option>grayscale</option><option>dark</option><option>black</option></select>
+  </div>
+  <script type="module">
+    import { Deck } from '@deck.gl/core';
+    import { ArcLayer } from '@deck.gl/layers';
+    import { createSession, createVectorBasemapLayer, createRasterBasemapLayer, createSMapDeck, addAttribution, pointsLayers, linesLayers, popupTooltip } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-deckgl@1.2.11/src/index.js';
+
+    const q = new URLSearchParams(location.search);
+    for (const a of document.querySelectorAll('#bar a')) { a.search += q.get('key') ? '&key=' + q.get('key') : ''; }
+    const mode = q.get('mode') || 'vector';
+    const style = q.get('style') || 'light';
+    const sel = document.getElementById('style');
+    sel.value = style;
+    sel.onchange = () => { q.set('style', sel.value); location.search = q.toString(); };
+    const access = { apiKey: q.get('key') || undefined, baseUrl: q.get('base') || undefined };
+    const language = q.get('lang') || navigator.language;
+
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, name: 'City Hall', seq: 1, color: '#e6194b' },
+      { lng: -79.3871, lat: 43.6426, name: 'CN Tower', seq: 2, color: '#3cb44b' },
+      { lng: -79.3957, lat: 43.6677, name: 'Queen\'s Park', seq: 3, color: '#4363d8' },
+    ];
+    const route = { type: 'Feature', properties: { color: '#2563eb' }, geometry: { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) } };
+    const arcs = new ArcLayer({ id: 'arcs', data: [{ from: [-79.3832, 43.6532], to: [-73.5673, 45.5017] }], getSourcePosition: (d) => d.from, getTargetPosition: (d) => d.to, getSourceColor: [230, 25, 75], getTargetColor: [67, 99, 216], getWidth: 3 });
+    const ours = [
+      ...linesLayers('route', route, { color: { property: 'color' }, width: 5, casing: true }),
+      ...pointsLayers('stops', stops, { marker: { text: { property: 'seq' }, border: { property: 'color' } }, label: 'name', popup: (p) => '<b>' + p.name + '</b>' }),
+    ];
+    const view = { longitude: -79.39, latitude: 43.655, zoom: 12, pitch: 30 };
+
+    if (mode === 'interleaved') {
+      const { map } = await createSMapDeck({ container: 'map', ...access, style, language, center: [view.longitude, view.latitude], zoom: view.zoom, pitch: view.pitch, deck: { layers: [arcs] } });
+      map.addPoints('stops', stops, { marker: { text: { property: 'seq' }, border: { property: 'color' } }, popup: (p) => '<b>' + p.name + '</b>' });
+      map.setBuildings3D(true);
+    } else {
+      const session = createSession(access);
+      const basemap = mode === 'raster'
+        ? await createRasterBasemapLayer({ session, style, language, retina: devicePixelRatio > 1 })
+        : await createVectorBasemapLayer({ session, style, language, buildings3D: true });
+      const bg = basemap.smap.background;
+      if (bg) { document.body.style.background = `rgba(${bg[0]},${bg[1]},${bg[2]},${bg[3] / 255})`; }
+      new Deck({ parent: document.getElementById('map'), initialViewState: view, controller: true, layers: [basemap, arcs, ...ours], getTooltip: popupTooltip() });
+      addAttribution(document.getElementById('map'));
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap for Leaflet</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.css">
+  <style>
+    body { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+    .bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; flex-wrap: wrap; }
+    .maps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 12px 12px; }
+    .maps > div { height: 70vh; border: 1px solid #cbd5e1; border-radius: 6px; }
+    h2 { font-size: 14px; margin: 0 12px; }
+    @media (max-width: 800px) { .maps { grid-template-columns: 1fr; } }
+  </style>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_… -->
+  <script type="importmap">
+  {
+    "imports": {
+      "leaflet": "https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.esm.js",
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs",
+      "@superrouteca/smap-leaflet": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-leaflet@1.2.11/src/index.js",
+      "@superrouteca/smap-leaflet/compat": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-leaflet@1.2.11/src/compat.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="bar">
+    <label>Scheme <select id="scheme"><option>light</option><option>white</option><option>grayscale</option><option>dark</option><option>black</option></select></label>
+    <label>Language <select id="lang"><option>en</option><option>fr</option><option>de</option><option>zh-Hans</option></select></label>
+    <label><input type="checkbox" id="raster"> Raster tiles</label>
+    <button id="water">Blue water</button>
+  </div>
+  <h2>sMap in Leaflet (left) · Leaflet calls on an sMap map (right)</h2>
+  <div class="maps"><div id="leaflet"></div><div id="smap"></div></div>
+  <script type="module">
+    import * as Leaflet from 'leaflet';
+    import { Map as SMap, popupTemplate } from '@superrouteca/smap';
+    import { smapLayer, smapRasterLayer } from '@superrouteca/smap-leaflet';
+    import { createLeafletCompat } from '@superrouteca/smap-leaflet/compat';
+
+    const L = Leaflet.default || Leaflet;
+    const apiKey = new URLSearchParams(location.search).get('key') || undefined;
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, n: 1, status: '#16a34a', name: 'City Hall' },
+      { lng: -79.3871, lat: 43.6426, n: 2, status: '#f97316', name: 'CN Tower' },
+      { lng: -79.3957, lat: 43.6677, n: 3, status: '#2563eb', name: 'Queen’s Park' },
+      { lng: -79.3806, lat: 43.6629, n: 4, status: '#e11d48', name: 'Church St' },
+    ];
+    const route = { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) };
+
+    // ① sMap in Leaflet
+    const map = L.map('leaflet').setView([43.655, -79.387], 14);
+    let base = smapLayer({ apiKey, style: 'light', language: 'en' }).addTo(map);
+    function decorate(layer) {
+      layer.addLines('route', route, { color: '#2563eb', width: 5, casing: true, arrows: true });
+      layer.addPoints('stops', stops, {
+        marker: { fill: { property: 'status' }, border: '#1e293b', text: { property: 'n' } },
+        popup: popupTemplate('<b>{n}</b> {name}'),
+      });
+    }
+    decorate(base);
+    L.marker([43.6487, -79.3817]).addTo(map).bindPopup('A Leaflet marker over sMap');
+
+    const scheme = document.getElementById('scheme');
+    const lang = document.getElementById('lang');
+    scheme.onchange = () => base.setStyle(scheme.value);
+    lang.onchange = () => base.setLanguage(lang.value);
+    document.getElementById('water').onclick = () => base.setBasemap && base.setBasemap({ water: { color: '#60a5fa' } });
+    document.getElementById('raster').onchange = (e) => {
+      map.removeLayer(base);
+      base = e.target.checked
+        ? smapRasterLayer({ apiKey, style: scheme.value, language: lang.value }).addTo(map)
+        : smapLayer({ apiKey, style: scheme.value, language: lang.value }).addTo(map);
+      if (!e.target.checked) { decorate(base); }
+    };
+
+    // ② Leaflet calls on an sMap map
+    const smap = new SMap({ container: 'smap', apiKey, style: 'light', language: 'en', center: [-79.387, 43.655], zoom: 13 });
+    await smap.ready;
+    const C = createLeafletCompat(smap);
+    C.polyline(stops.map((s) => [s.lat, s.lng]), { color: '#16a34a', weight: 5, dashArray: '10, 6' }).addTo(C.map);
+    C.geoJSON({ type: 'FeatureCollection', features: stops.map((s) => ({ type: 'Feature', properties: s, geometry: { type: 'Point', coordinates: [s.lng, s.lat] } })) }, {
+      pointToLayer: (f, latlng) => C.circleMarker(latlng, { radius: 9, color: '#fff', weight: 2, fillColor: f.properties.status, fillOpacity: 1 }),
+      onEachFeature: (f, layer) => layer.bindPopup(`<b>${f.properties.n}</b> ${f.properties.name}`),
+    }).addTo(C.map);
+    C.circle([43.6532, -79.3832], { radius: 300, color: '#f97316' }).addTo(C.map);
+    C.map.on('click', (e) => console.log('clicked', e.latlng));
+  </script>
+</body>
+</html>

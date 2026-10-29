@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap for Mapbox GL JS</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mapbox-gl@3.33.0/dist/mapbox-gl.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.css">
+  <style>
+    body { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+    .bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; flex-wrap: wrap; }
+    .maps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 12px 12px; }
+    .maps > div { height: 70vh; border: 1px solid #cbd5e1; border-radius: 6px; position: relative; }
+    h2 { font-size: 14px; margin: 0 12px; }
+    @media (max-width: 800px) { .maps { grid-template-columns: 1fr; } }
+  </style>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_…&mapbox=pk.… -->
+  <script src="https://cdn.jsdelivr.net/npm/mapbox-gl@3.33.0/dist/mapbox-gl.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs",
+      "@superrouteca/smap-mapbox": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-mapbox@1.2.11/src/index.js",
+      "@superrouteca/smap-mapbox/on-smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap-mapbox@1.2.11/src/on-smap.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="bar">
+    <label>Scheme <select id="scheme"><option>light</option><option>white</option><option>grayscale</option><option>dark</option><option>black</option></select></label>
+    <label>Language <select id="lang"><option>en</option><option>fr</option><option>de</option><option>zh-Hans</option></select></label>
+    <label><input type="checkbox" id="buildings" checked> 3D buildings</label>
+    <button id="water">Blue water</button>
+  </div>
+  <h2>sMap in Mapbox GL JS (left) · Mapbox GL JS layers on an sMap map (right)</h2>
+  <div class="maps"><div id="mapbox"></div><div id="smap"></div></div>
+  <script type="module">
+    const mapboxgl = window.mapboxgl;   // the browser build of Mapbox GL JS, loaded above
+    import { Map as SMap, popupTemplate } from '@superrouteca/smap';
+    import { SMapMapbox } from '@superrouteca/smap-mapbox';
+    import { addMapboxLayers } from '@superrouteca/smap-mapbox/on-smap';
+
+    const q = new URLSearchParams(location.search);
+    const apiKey = q.get('key') || undefined;
+    mapboxgl.accessToken = q.get('mapbox') || '';
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, n: 1, status: '#16a34a', name: 'City Hall' },
+      { lng: -79.3871, lat: 43.6426, n: 2, status: '#f97316', name: 'CN Tower' },
+      { lng: -79.3957, lat: 43.6677, n: 3, status: '#2563eb', name: 'Queen’s Park' },
+      { lng: -79.3806, lat: 43.6629, n: 4, status: '#e11d48', name: 'Church St' },
+    ];
+    const zone = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[-79.392, 43.648], [-79.378, 43.648], [-79.378, 43.658], [-79.392, 43.658], [-79.392, 43.648]]] } };
+
+    // ① sMap in Mapbox GL JS
+    const smap = new SMapMapbox(mapboxgl, { container: 'mapbox', apiKey, style: 'light', language: 'en', center: [-79.387, 43.652], zoom: 14.5, pitch: 55, bearing: -20, buildings3D: true });
+    await smap.ready;
+    smap.addSource('zone', { type: 'geojson', data: zone });
+    smap.addStyleLayer({ id: 'zone-fill', type: 'fill', source: 'zone', paint: { 'fill-color': '#f97316', 'fill-opacity': 0.25 } }, { slot: 'roads' });
+    smap.addLines('route', { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) }, { color: '#2563eb', width: 5, casing: true, arrows: true });
+    smap.addPoints('stops', stops, { marker: { fill: { property: 'status' }, border: '#1e293b', text: { property: 'n' } }, popup: popupTemplate('<b>{n}</b> {name}') });
+
+    const scheme = document.getElementById('scheme');
+    const lang = document.getElementById('lang');
+    scheme.onchange = () => smap.setStyle(scheme.value);
+    lang.onchange = () => smap.setLanguage(lang.value);
+    document.getElementById('buildings').onchange = (e) => smap.setBuildings3D(e.target.checked);
+    document.getElementById('water').onclick = () => smap.setBasemap({ water: { color: '#60a5fa' } });
+
+    // ② Mapbox GL JS layers on an sMap map
+    const plain = new SMap({ container: 'smap', apiKey, style: 'grayscale', language: 'en', center: [-79.387, 43.655], zoom: 13 });
+    await plain.ready;
+    const report = await addMapboxLayers(plain, [
+      { id: 'zone-line', type: 'line', source: 'zone', paint: { 'line-color': '#f97316', 'line-width': 3 }, slot: 'middle' },
+      { id: 'stop-dots', type: 'circle', source: 'stops', paint: { 'circle-radius': 7, 'circle-color': ['get', 'status'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 } },
+    ], { sources: { zone: { type: 'geojson', data: zone }, stops: { type: 'geojson', data: { type: 'FeatureCollection', features: stops.map((s) => ({ type: 'Feature', properties: s, geometry: { type: 'Point', coordinates: [s.lng, s.lat] } })) } } } });
+    console.log('Mapbox GL JS layers on sMap', report);
+  </script>
+</body>
+</html>

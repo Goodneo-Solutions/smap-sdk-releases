@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Product>sMap WinForms Example</Product>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Superroute.SMap.WinForms" Version="1.2.11" />
+    <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
+  </ItemGroup>
+  <!-- What the NuGet package brings to an app by itself (buildTransitive); a project reference does not. -->
+  <Import Project="../../src/Superroute.SMap.WinForms/buildTransitive/Superroute.SMap.WinForms.targets" />
+</Project>

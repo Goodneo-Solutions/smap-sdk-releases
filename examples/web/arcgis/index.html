@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>sMap and ArcGIS</title>
+  <!-- Serve this folder (npx serve .) and open /?key=smk_…[&raster=1][&style=dark][&lang=fr] -->
+  <link rel="stylesheet" href="https://js.arcgis.com/5.1/esri/themes/light/main.css">
+  <style>html, body, #map { margin: 0; height: 100%; }</style>
+  <script type="importmap">
+  {
+    "imports": {
+      "@arcgis/core/": "https://esm.sh/@arcgis/core@5.1.27/",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.11/dist/smap-client.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="map"></div>
+  <script type="module">
+    import Map from '@arcgis/core/Map.js';
+    import MapView from '@arcgis/core/views/MapView.js';
+    import { createSMapBasemap, addAttribution, createGraphicsLayer } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-arcgis@1.2.11/src/index.js';
+
+    const q = new URLSearchParams(location.search);
+    const basemap = await createSMapBasemap({
+      apiKey: q.get('key') || undefined, baseUrl: q.get('base') || undefined,
+      style: q.get('style') || 'light', language: q.get('lang') || navigator.language, raster: q.has('raster'),
+    });
+    const stops = [
+      { lng: -79.3832, lat: 43.6532, name: 'City Hall', color: '#e6194b' },
+      { lng: -79.3871, lat: 43.6426, name: 'CN Tower', color: '#3cb44b' },
+      { lng: -79.3957, lat: 43.6677, name: 'Queen\'s Park', color: '#4363d8' },
+    ];
+    const route = { type: 'LineString', coordinates: stops.map((s) => [s.lng, s.lat]) };
+    const map = new Map({ basemap, layers: [
+      createGraphicsLayer('route', 'lines', route, { color: '#2563eb', width: 4 }),
+      createGraphicsLayer('stops', 'points', stops, { marker: { border: { property: 'color' } }, label: 'name', popup: (p) => '<b>' + p.name + '</b>', popupTitle: 'Stop' }),
+    ] });
+    const view = new MapView({ container: 'map', map, center: [-79.39, 43.655], zoom: 13 });
+    addAttribution(view);
+    window.view = view;
+  </script>
+</body>
+</html>
