@@ -88,4 +88,4 @@ release.
 
 ## Licence
 
-MIT, see [LICENSE](LICENSE).
+Superroute SDK License — see [LICENSE](LICENSE) and [open.superroute.ca/developer/license](https://open.superroute.ca/developer/license). Versions published before the Superroute SDK License keep the licence they were published with.
