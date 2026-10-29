@@ -11,7 +11,7 @@
   {
     "imports": {
       "@arcgis/core/": "https://esm.sh/@arcgis/core@5.1.27/",
-      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.12/dist/smap-client.mjs"
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.2.15/dist/smap-client.mjs"
     }
   }
   </script>
@@ -21,7 +21,7 @@
   <script type="module">
     import Map from '@arcgis/core/Map.js';
     import MapView from '@arcgis/core/views/MapView.js';
-    import { createSMapBasemap, addAttribution, createGraphicsLayer } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-arcgis@1.2.12/src/index.js';
+    import { createSMapBasemap, addAttribution, createGraphicsLayer } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-arcgis@1.2.15/src/index.js';
 
     const q = new URLSearchParams(location.search);
     const basemap = await createSMapBasemap({

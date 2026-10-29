@@ -8,7 +8,7 @@
     "start": "react-native start"
   },
   "dependencies": {
-    "@superrouteca/smap-react-native": "1.2.12",
+    "@superrouteca/smap-react-native": "1.2.15",
     "react": "19.3.0",
     "react-native": "0.88.0"
   },

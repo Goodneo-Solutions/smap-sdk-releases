@@ -11,7 +11,7 @@ Superroute's sMap service: five colour schemes, labels in any language, points (
 
 Documentation: https://open.superroute.ca/developer/smap
 
-Latest release: **1.2.12**
+Latest release: **1.2.15**
 
 ## iOS and macOS (Swift Package Manager)
 
@@ -19,7 +19,7 @@ In Xcode, *File › Add Package Dependencies…* with `https://github.com/Goodne
 `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/Goodneo-Solutions/smap-sdk-releases", from: "1.2.12")
+.package(url: "https://github.com/Goodneo-Solutions/smap-sdk-releases", from: "1.2.15")
 // target dependency, iOS 14+:
 .product(name: "SMap", package: "smap-sdk-releases")
 // target dependency, macOS 12+:
@@ -43,7 +43,7 @@ dependencyResolutionManagement {
 
 // app/build.gradle.kts
 dependencies {
-    implementation("ca.superroute:smap:1.2.12")
+    implementation("ca.superroute:smap:1.2.15")
 }
 ```
 
@@ -56,7 +56,7 @@ Android 6.0 (API 23) and later.
 | Web (JavaScript) | `npm install @superrouteca/smap` |
 | React | `npm install @superrouteca/smap-react @superrouteca/smap` |
 | React Native | `npm install @superrouteca/smap-react-native` |
-| Flutter | `smap_flutter: ^1.2.12` in `pubspec.yaml` |
+| Flutter | `smap_flutter: ^1.2.15` in `pubspec.yaml` |
 | Windows | `dotnet add package Superroute.SMap.Wpf` or `dotnet add package Superroute.SMap.WinForms` |
 | Leaflet, OpenLayers, Mapbox GL JS, deck.gl, ArcGIS, CesiumJS | `npm install @superrouteca/smap-leaflet` (`-openlayers`, `-mapbox`, `-deckgl`, `-arcgis`, `-cesium`) |
 
