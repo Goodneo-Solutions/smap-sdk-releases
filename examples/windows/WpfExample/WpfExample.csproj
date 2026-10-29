@@ -7,7 +7,7 @@
     <StartupObject>Superroute.SMap.Examples.Wpf.Program</StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Superroute.SMap.Wpf" Version="1.2.11" />
+    <PackageReference Include="Superroute.SMap.Wpf" Version="1.2.12" />
     <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
