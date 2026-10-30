@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smap_flutter/smap_flutter.dart';
 
+import 'gaps_demo.dart';
+
 /// Pass a token at build time: `flutter run --dart-define=SMAP_TOKEN=sm1....`
 /// (an app normally gets it from its own server through `getToken`).
 const String token = String.fromEnvironment('SMAP_TOKEN');
@@ -181,6 +183,11 @@ class _DemoScreenState extends State<DemoScreen> {
       appBar: AppBar(
         title: const Text('sMap'),
         actions: [
+          IconButton(
+            tooltip: '1.5.0',
+            icon: const Icon(Icons.auto_awesome),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const GapsDemoScreen())),
+          ),
           DropdownButton<String>(
             value: _language,
             underline: const SizedBox.shrink(),

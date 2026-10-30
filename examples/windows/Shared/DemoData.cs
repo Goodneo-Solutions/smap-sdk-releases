@@ -58,4 +58,35 @@ internal static class DemoData
         lines("route", Route(), new SMapLineOptions { Color = "#16a34a", Width = 5, ZIndex = 1 });
         points("stops", Stops(), new SMapPointOptions { Cluster = new SMapCluster(), ZIndex = 2 });
     }
+
+    /// <summary>Depots with a delivery radius in metres (1.5.0 circles).</summary>
+    internal static IEnumerable<SMapPoint> Depots() => new[]
+    {
+        new SMapPoint(43.6532, -79.3832) { Id = "east", Properties = new Dictionary<string, object?> { ["name"] = "East depot", ["radius"] = 1500.0 } },
+        new SMapPoint(43.6700, -79.4500) { Id = "west", Properties = new Dictionary<string, object?> { ["name"] = "West depot", ["radius"] = 900.0 } },
+    };
+
+    /// <summary>The app's own places for the search tool (the SDK never calls a geocoder).</summary>
+    internal static System.Threading.Tasks.Task<IReadOnlyList<SMapSearchResult>> Search(string text)
+    {
+        var places = new[]
+        {
+            new SMapSearchResult("Union Station") { Position = new SMapLatLng(43.6453, -79.3806) },
+            new SMapSearchResult("High Park") { Bounds = new SMapBounds(-79.4730, 43.6380, -79.4570, 43.6550) },
+            new SMapSearchResult("Harbourfront") { Position = new SMapLatLng(43.6387, -79.3817) },
+        };
+        IReadOnlyList<SMapSearchResult> found = places.Where(p => p.Label.Contains(text, StringComparison.OrdinalIgnoreCase)).ToList();
+        return System.Threading.Tasks.Task.FromResult(found);
+    }
+
+    /// <summary>The circles' look: a hover look, the depot named in a tooltip.</summary>
+    internal static SMapCircleOptions Reach() => new()
+    {
+        Area = new SMapPolygonOptions
+        {
+            Fill = "#0ea5e9", Opacity = 0.2, HoverState = true, IdProperty = null,
+            States = new[] { new SMapState<SMapPolygonLook>("hover", new SMapPolygonLook { Opacity = 0.45 }) },
+            Tooltip = SMapTooltip.Template("{name}"),
+        },
+    };
 }

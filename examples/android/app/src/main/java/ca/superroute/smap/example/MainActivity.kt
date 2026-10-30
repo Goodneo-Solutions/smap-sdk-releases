@@ -43,6 +43,26 @@ import ca.superroute.smap.SMapToolKind
 import ca.superroute.smap.SMapToolPosition
 import ca.superroute.smap.SMapToolsOptions
 import ca.superroute.smap.SMapValue
+import ca.superroute.smap.SMapEventType
+import ca.superroute.smap.SMapFitOptions
+import ca.superroute.smap.SMapLineLook
+import ca.superroute.smap.SMapPolygonLook
+import ca.superroute.smap.SMapRotationAlignment
+import ca.superroute.smap.SMapCircleOptions
+import ca.superroute.smap.SMapExportOptions
+import ca.superroute.smap.SMapExportView
+import ca.superroute.smap.SMapGlyph
+import ca.superroute.smap.SMapImageOptions
+import ca.superroute.smap.SMapLineArrows
+import ca.superroute.smap.SMapPointLook
+import ca.superroute.smap.SMapSearchOptions
+import ca.superroute.smap.SMapSearchResult
+import ca.superroute.smap.SMapGeo
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,9 +77,12 @@ import kotlin.random.Random
  * preferences.
  */
 private val ROUTE_COLORS = listOf("#e11d48", "#2563eb", "#16a34a", "#f97316")
+private const val CHECK = "SMapCheck"
 
 class MainActivity : Activity() {
     private lateinit var map: SMap
+    private var legend: View? = null
+    private var draw: ca.superroute.smap.SMapDrawTool? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     /** The offline example: downtown Toronto to street level, in the scheme and language shown. */
@@ -93,8 +116,10 @@ class MainActivity : Activity() {
         setContentView(root)
 
         addLayers()
+        addGaps()
+        addGaps150()
         addTools()
-        map.ready { Toast.makeText(this, "Map ready", Toast.LENGTH_SHORT).show() }
+        map.ready { Toast.makeText(this, "Map ready", Toast.LENGTH_SHORT).show(); check() }
     }
 
     private fun controls(): View {
@@ -166,6 +191,36 @@ class MainActivity : Activity() {
             }
         }
         bar.addView(offline)
+
+        // Fit the view to the route, the zones and the block together (G15).
+        val fit = Button(this)
+        fit.text = "Fit"
+        fit.setOnClickListener { map.fitLayer(listOf("route", "zones", "block"), SMapFitOptions(maxZoom = 16.0)) }
+        bar.addView(fit)
+
+        // The map as a picture with the legend in its corner (G29), shown in a dialog.
+        val export = Button(this)
+        export.text = "Export"
+        export.setOnClickListener {
+            scope.launch {
+                try {
+                    val picture = map.export(SMapExportOptions(include = listOfNotNull(legend?.let { SMapExportView(it, SMapToolPosition.TOP_RIGHT) })))
+                    val bytes = map.exportBytes(SMapExportOptions(format = ca.superroute.smap.SMapExportFormat.JPEG, quality = 0.8f))
+                    Log.i(CHECK, "export ${picture.width}x${picture.height} jpeg=${bytes.size} bytes")
+                    val image = android.widget.ImageView(this@MainActivity).apply { setImageBitmap(picture); adjustViewBounds = true }
+                    android.app.AlertDialog.Builder(this@MainActivity).setView(image).setPositiveButton("OK", null).show()
+                } catch (e: Exception) {
+                    Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        bar.addView(export)
+
+        // A small map in a screen that scrolls (G36).
+        val small = Button(this)
+        small.text = "Small map"
+        small.setOnClickListener { startActivity(android.content.Intent(this, SmallMapActivity::class.java)) }
+        bar.addView(small)
         return bar
     }
 
@@ -184,11 +239,21 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.WHITE)
             setPadding(pad, pad / 2, pad, pad / 2)
         }
+        this.legend = legend
         map.addTool("legend", legend, getString(R.string.legend_label), SMapToolPosition.BOTTOM_LEFT)
         // Drawing zones (toolbar bottom right); the result is shown as a message.
-        map.drawTool(SMapDrawOptions(toolbar = SMapToolPosition.BOTTOM_RIGHT, onChange = { e ->
+        // Measuring while drawing, no self-crossing, snapping to the zones and lanes, dashed exclusions (G28).
+        draw = map.drawTool(SMapDrawOptions(toolbar = SMapToolPosition.BOTTOM_RIGHT, onChange = { e ->
             Toast.makeText(this, "${e.type}: ${e.features.getAsJsonArray("features").size()} shapes", Toast.LENGTH_SHORT).show()
-        }))
+        }, measure = true, allowSelfIntersection = false, snapLayers = listOf("zones", "lanes"),
+            style = { p, _ -> if (p["kind"] == "exclusion") ca.superroute.smap.SMapDrawStyle(color = "#dc2626", dash = listOf(2f, 2f), fillOpacity = 0.1f) else null },
+            onDrawing = { e -> Log.i(CHECK, "drawing ${e.mode} length=%.0f area=%.0f valid=${e.valid}".format(e.length, e.area)) }))
+        // The address search over the app's own places (G35).
+        val places = listOf("Union Station" to LatLng(43.6453, -79.3806), "Queen's Park" to LatLng(43.6629, -79.3957), "Queens Quay" to LatLng(43.6397, -79.3800), "Kensington Market" to LatLng(43.6547, -79.4005))
+        map.addTool("find", SMapSearchOptions(
+            search = { text -> kotlinx.coroutines.delay(150); places.filter { it.first.contains(text, ignoreCase = true) }.map { SMapSearchResult(it.first, position = it.second) } },
+            onPick = { r -> Log.i(CHECK, "search picked ${r.label}") },
+        ), position = SMapToolPosition.TOP_RIGHT)
         map.addTool("layers", SMapLayersTool(
             base = listOf(
                 SMapLayersBase("streets", "Streets"),
@@ -229,9 +294,9 @@ class MainActivity : Activity() {
         map.addLines(
             "route",
             listOf(SMapLine(listOf(LatLng(43.6426, -79.3871), LatLng(43.6532, -79.3832), LatLng(43.6677, -79.3948), LatLng(43.6890, -79.3940)), mapOf("name" to "Route 7"))),
-            SMapLineOptions(color = "#f97316", width = 5f, zIndex = 1, label = "name"),
+            SMapLineOptions(color = "#f97316", width = 5f, zIndex = 1, label = "name", arrows = SMapLineArrows(share = 0.15f, color = "#7c2d12"), labelSize = SMapFeatureValue.of(13f)),
         )
-        map.addHeatmap("density", points.take(400), SMapHeatmapOptions(radius = 18f, opacity = 0.6f, zIndex = 0))
+        map.addHeatmap("density", points.take(400), SMapHeatmapOptions(radius = 18f, opacity = 0.6f, zIndex = 0, blur = 10f, minOpacity = 0.25f))
         // Hillshading from public elevation tiles, and a grid the app draws itself.
         map.setTerrain(SMapTerrain(listOf("https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"), attribution = "Terrain: Mapzen / AWS"))
         map.addCanvasTiles("grid", opacity = 0.6) { canvas, z, x, y, size ->
@@ -244,14 +309,15 @@ class MainActivity : Activity() {
         map.addModels(
             "trucks3d",
             listOf(
-                SMapPoint(43.6555, -79.3880, mapOf("id" to "t1", "bearing" to 0)),
-                SMapPoint(43.6555, -79.3820, mapOf("id" to "t2", "bearing" to 90)),
+                SMapPoint(43.6555, -79.3880, mapOf("id" to "t1", "bearing" to 0, "driver_color" to "#e11d48")),
+                SMapPoint(43.6555, -79.3820, mapOf("id" to "t2", "bearing" to 90, "driver_color" to "#2563eb")),
             ),
             SMapModelOptions(
                 model = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb",
                 size = SMapFeatureValue.of(40.0),
                 heading = SMapFeatureValue.property("bearing", 0.0),
                 idProperty = "id",
+                color = SMapFeatureValue.property("driver_color"),
             ),
         )
         // Three vans as the app's own views: a long press drags one.
@@ -285,6 +351,220 @@ class MainActivity : Activity() {
             ),
             SMapPolygonOptions(fill = "#7c3aed", opacity = 0.7f, extrude = SMapExtrude(height = SMapValue.property("height"))),
         )
+    }
+
+    /**
+     * The 1.5.0 calls (G15–G24): zones with hover and selected looks and a dashed outline per zone (a tap selects
+     * one, a double tap and a long press name it), lines whose width and dash differ per line, and a fleet of two
+     * arrows moved every second towards their heading.
+     */
+    private fun addGaps() {
+        fun square(lat: Double, lng: Double, d: Double) = listOf(listOf(LatLng(lat, lng), LatLng(lat, lng + d), LatLng(lat + d, lng + d), LatLng(lat + d, lng)))
+        map.addPolygons(
+            "zones",
+            listOf(
+                SMapPolygon(square(43.670, -79.420, 0.012), mapOf("code" to "Z1", "color" to "#0ea5e9", "open" to true)),
+                SMapPolygon(square(43.670, -79.405, 0.012), mapOf("code" to "Z2", "color" to "#f59e0b", "open" to false)),
+            ),
+            SMapPolygonOptions(
+                idProperty = "code", fillValue = SMapFeatureValue.property("color", "#64748b"), opacity = 0.25f,
+                outlineDash = SMapFeatureValue.computed { p -> if (p["open"] == true) null else listOf(2f, 2f) },
+                states = mapOf("hover" to SMapPolygonLook(opacity = 0.45f), "selected" to SMapPolygonLook(outline = "#111827", outlineWidth = 3f)),
+                hoverState = true, tooltip = SMapTooltip.template("Zone {code}"),
+                onDoubleClick = { f, _ -> Toast.makeText(this, "Double tap ${f.key}", Toast.LENGTH_SHORT).show(); Log.i(CHECK, "dblclick ${f.key}") },
+                onContextMenu = { f, _ -> Toast.makeText(this, "Long press ${f.key}", Toast.LENGTH_SHORT).show(); Log.i(CHECK, "contextmenu ${f.key}") },
+            ),
+        )
+        map.onTap("zones") { p, _ ->
+            val code = p["code"].toString()
+            val on = map.featureState("zones", code)["selected"] != true
+            map.removeFeatureState("zones", name = "selected")
+            if (on) map.setFeatureState("zones", code, mapOf("selected" to true))
+            Log.i(CHECK, "tap $code selected=$on")
+        }
+        map.addLines(
+            "lanes",
+            listOf(
+                SMapLine(listOf(LatLng(43.660, -79.430), LatLng(43.660, -79.390)), mapOf("w" to 3, "dash" to listOf(2, 1), "rank" to 1)),
+                SMapLine(listOf(LatLng(43.664, -79.430), LatLng(43.664, -79.390)), mapOf("w" to 7, "rank" to 2)),
+            ),
+            SMapLineOptions(color = "#334155", widthValue = SMapFeatureValue.property("w", 4f), dashValue = SMapFeatureValue.property("dash"), sortProperty = "rank",
+                states = mapOf("selected" to SMapLineLook(color = "#dc2626"))),
+        )
+        map.addImage("arrow", arrow())
+        map.addPoints(
+            "fleet",
+            listOf(
+                SMapPoint(43.655, -79.410, mapOf("id" to "a", "course" to 45, "name" to "Truck A")),
+                SMapPoint(43.652, -79.400, mapOf("id" to "b", "course" to 180, "name" to "Truck B")),
+            ),
+            SMapPointOptions(icon = "arrow", iconAnchor = SMapAnchor.CENTER, idProperty = "id", rotation = SMapFeatureValue.property("course", 0f),
+                rotationAlignment = SMapRotationAlignment.MAP, tooltip = SMapTooltip.template("{name}"), zIndex = 3),
+        )
+        // Every second each truck goes 150 m on along its heading, eased over the second.
+        val handler = android.os.Handler(mainLooper)
+        val course = mutableMapOf("a" to 45.0, "b" to 180.0)
+        val at = mutableMapOf("a" to LatLng(43.655, -79.410), "b" to LatLng(43.652, -79.400))
+        handler.post(object : Runnable {
+            override fun run() {
+                for (id in listOf("a", "b")) {
+                    val c = (course[id]!! + Random.nextDouble(-20.0, 20.0)).mod(360.0)
+                    course[id] = c
+                    val p = at[id]!!
+                    val next = LatLng(p.latitude + 0.00135 * Math.cos(Math.toRadians(c)), p.longitude + 0.00135 * Math.sin(Math.toRadians(c)) / Math.cos(Math.toRadians(p.latitude)))
+                    at[id] = next
+                    map.updateFeature("fleet", id, mapOf("course" to c))
+                    map.moveFeature("fleet", id, next, durationMillis = 1000)
+                }
+                handler.postDelayed(this, 1000)
+            }
+        })
+        map.on(SMapEventType.MOVE_END) { e -> Log.i(CHECK, "moveend zoom=%.2f".format(e.zoom)) }
+        map.on(SMapEventType.ZOOM_END) { e -> Log.i(CHECK, "zoomend zoom=%.2f".format(e.zoom)) }
+        map.on(SMapEventType.CLICK) { e ->
+            val hits = map.featuresAt(e.point!!)
+            Log.i(CHECK, "click at ${e.position} features=${hits.map { "${it.layer}:${it.feature.key}" }}")
+        }
+        map.on(SMapEventType.DOUBLE_CLICK) { e -> Log.i(CHECK, "map dblclick prevented=${e.defaultPrevented}") }
+        map.on(SMapEventType.CONTEXT_MENU) { e -> Log.i(CHECK, "map contextmenu at ${e.point}") }
+    }
+
+    /**
+     * The 1.5.0 calls G25–G37: an SDF image in each point's colour, a glyph image, circles in metres with a hover
+     * look, labels with priority, the unavailable event, and a few geometry answers in the log.
+     */
+    private fun addGaps150() {
+        map.addImage("drop", sdfDrop(), SMapImageOptions(sdf = true))
+        map.addGlyphImage("star", SMapGlyph("★", sizeDp = 18f, color = "#ffffff", background = "#0ea5e9"))
+        map.addPoints(
+            "depots",
+            listOf(
+                SMapPoint(43.6480, -79.4150, mapOf("id" to "d1", "c" to "#16a34a", "rank" to 1, "name" to "Depot West")),
+                SMapPoint(43.6480, -79.4100, mapOf("id" to "d2", "c" to "#9333ea", "rank" to 3, "name" to "Depot Centre")),
+                SMapPoint(43.6480, -79.4050, mapOf("id" to "d3", "c" to "#ea580c", "rank" to 2, "name" to "Depot East")),
+            ),
+            SMapPointOptions(icon = "drop", iconColor = SMapFeatureValue.property("c", "#111827"), iconAnchor = SMapAnchor.BOTTOM, idProperty = "id",
+                label = "name", priority = SMapFeatureValue.property("rank", 0f), allowOverlap = false, zIndex = 4,
+                states = mapOf("selected" to SMapPointLook(iconColor = "#dc2626"))),
+        )
+        map.addPoints("hq", listOf(SMapPoint(43.6440, -79.4100, mapOf("name" to "HQ"))), SMapPointOptions(icon = "star", iconAnchor = SMapAnchor.CENTER, zIndex = 4))
+        map.addCircles(
+            "fences",
+            listOf(
+                SMapPoint(43.6480, -79.4150, mapOf("id" to "d1", "radius_m" to 300)),
+                SMapPoint(43.6480, -79.4050, mapOf("id" to "d3", "radius_m" to 450)),
+            ),
+            SMapCircleOptions(radius = SMapFeatureValue.property("radius_m"), area = SMapPolygonOptions(fill = "#2563eb", opacity = 0.15f, outline = "#2563eb",
+                outlineDash = SMapFeatureValue.of(listOf(2f, 2f)), idProperty = "id", hoverState = true, states = mapOf("hover" to SMapPolygonLook(opacity = 0.3f)),
+                tooltip = SMapTooltip.template("Fence {id}"))),
+        )
+        map.onTap("fences") { p, _ -> Log.i(CHECK, "fence tap ${p["id"]}") }
+        map.on(SMapEventType.UNAVAILABLE) { e -> Log.i(CHECK, "unavailable ${e.reason?.webName}") }
+        val zone = SMapGeo.circle(doubleArrayOf(-79.41, 43.648), 300.0)
+        Log.i(CHECK, "geo area=%.0f centroid=${SMapGeo.centroid(zone)!!.toList()} selfIntersects=${SMapGeo.selfIntersects(zone)}".format(SMapGeo.area(zone)))
+    }
+
+    // An SDF drop (alpha falls off over a few pixels at its edge), drawn in each point's iconColor.
+    private fun sdfDrop(): Bitmap {
+        val size = 64
+        val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; maskFilter = android.graphics.BlurMaskFilter(4f, android.graphics.BlurMaskFilter.Blur.NORMAL) }
+        val c = Canvas(b)
+        c.drawCircle(size / 2f, size * 0.38f, size * 0.3f, paint)
+        c.drawPath(Path().apply { moveTo(size * 0.25f, size * 0.5f); lineTo(size / 2f, size * 0.95f); lineTo(size * 0.75f, size * 0.5f); close() }, paint)
+        b.density = 2 * android.util.DisplayMetrics.DENSITY_DEFAULT
+        return b
+    }
+
+    // The checks the emulator run reads from the log (tag SMapCheck).
+    private fun check() {
+        map.fitLayer(listOf("zones", "lanes", "fleet"), SMapFitOptions(durationMillis = 0, maxZoom = 14.0))
+        Log.i(CHECK, "fit center=${map.getCenter()} zoom=%.2f bounds=${map.getBounds()}".format(map.getZoom()))
+        map.setFeatureState("zones", "Z2", mapOf("selected" to true))
+        Log.i(CHECK, "state Z2=${map.featureState("zones", "Z2")}")
+        mapView().postDelayed({
+            val p = map.project(LatLng(43.676, -79.399))!!
+            Log.i(CHECK, "project=$p unproject=${map.unproject(p)}")
+            Log.i(CHECK, "featuresAt Z2=${map.featuresAt(p).map { "${it.layer}:${it.feature.key}:${it.feature.properties["code"]}" }}")
+            Log.i(CHECK, "tap point for Z1 x=%.0f y=%.0f".format(map.project(LatLng(43.676, -79.414))!!.x, map.project(LatLng(43.676, -79.414))!!.y))
+            map.openTooltip("zones", "Z1")
+            Log.i(CHECK, "popup=${map.openFeaturePopup("zones", "Z1")}")
+        }, 1500)
+        // The 1.5.0 checks (G25–G37) the emulator run reads from the log.
+        mapView().postDelayed({ check150() }, 6000)
+        // A moving truck is found where it is drawn now.
+        mapView().postDelayed({
+            val a = map.toGeoJSON("fleet").features()!!.first { it.getStringProperty("id") == "a" }.geometry() as org.maplibre.geojson.Point
+            val p = map.project(LatLng(a.latitude(), a.longitude()))!!
+            Log.i(CHECK, "truck a at $p featuresAt=${map.featuresAt(p).map { "${it.layer}:${it.feature.key}" }}")
+        }, 4200)
+    }
+
+    // Taps on the map as a finger would make them.
+    private fun tapAt(at: LatLng) {
+        val p = map.project(at) ?: return
+        val t = android.os.SystemClock.uptimeMillis()
+        for ((dt, action) in listOf(0L to android.view.MotionEvent.ACTION_DOWN, 60L to android.view.MotionEvent.ACTION_UP)) {
+            val e = android.view.MotionEvent.obtain(t, t + dt, action, p.x, p.y, 0)
+            map.dispatchTouchEvent(e)
+            e.recycle()
+        }
+    }
+
+    private fun findViews(v: View, out: MutableList<View> = ArrayList()): List<View> {
+        out += v
+        if (v is ViewGroup) for (i in 0 until v.childCount) findViews(v.getChildAt(i), out)
+        return out
+    }
+
+    private fun check150() {
+        // G28: a bow tie refused, then a valid triangle with its figures.
+        val d = draw ?: return
+        d.start("polygon")
+        val corners = listOf(LatLng(43.630, -79.440), LatLng(43.660, -79.400), LatLng(43.630, -79.400), LatLng(43.660, -79.440))
+        corners.forEachIndexed { i, c -> mapView().postDelayed({ tapAt(c) }, 400L * (i + 1)) }
+        mapView().postDelayed({ d.finish(); Log.i(CHECK, "draw after bow tie: ${d.getAll().getAsJsonArray("features").size()} shapes") }, 2400)
+        mapView().postDelayed({ d.cancel(); d.start("line"); listOf(LatLng(43.636, -79.432), LatLng(43.636, -79.426), LatLng(43.632, -79.426)).forEachIndexed { i, c -> mapView().postDelayed({ tapAt(c) }, 400L * (i + 1)) } }, 2800)
+        mapView().postDelayed({ d.finish(); Log.i(CHECK, "draw line: ${d.getAll().getAsJsonArray("features").size()} shapes label=${findViews(map).filterIsInstance<TextView>().firstOrNull { Regex("^(r )?[0-9.,]+ (k?m²?)").containsMatchIn(it.text) }?.text}") }, 4800)
+        // G35: the search field asked for "que".
+        mapView().postDelayed({
+            val field = findViews(map).filterIsInstance<android.widget.EditText>().firstOrNull()
+            Log.i(CHECK, "search hint=${field?.hint}")
+            field?.setText("que")
+        }, 5200)
+        scope.launch {
+            kotlinx.coroutines.delay(5500)
+            var rows: List<CharSequence> = emptyList()
+            for (i in 0 until 40) {
+                rows = findViews(map).filterIsInstance<TextView>().filter { it !is android.widget.EditText && it.isShown && it.text.startsWith("Que") }.map { it.text }
+                if (rows.isNotEmpty()) break
+                kotlinx.coroutines.delay(250)
+            }
+            Log.i(CHECK, "search rows=$rows")
+            findViews(map).filterIsInstance<TextView>().firstOrNull { it.isShown && it.text == "Queens Quay" }?.performClick()
+        }
+        // G29: the map as a picture.
+        mapView().postDelayed({
+            scope.launch {
+                val picture = map.export(SMapExportOptions(include = listOfNotNull(legend?.let { SMapExportView(it, SMapToolPosition.TOP_RIGHT) })))
+                val png = map.exportBytes()
+                Log.i(CHECK, "export ${picture.width}x${picture.height} png=${png.size} bytes center=${map.getCenter()}")
+                try { java.io.File(filesDir, "export.png").writeBytes(png) } catch (e: Exception) { Log.i(CHECK, "export file ${e.message}") }
+            }
+        }, 9500)
+    }
+
+    private fun mapView(): View = map.mapView
+
+    private fun arrow(): Bitmap {
+        val d = resources.displayMetrics.density
+        val size = (28 * d).toInt()
+        val b = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(b)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#7c3aed") }
+        val path = Path().apply { moveTo(size / 2f, 0f); lineTo(size.toFloat(), size.toFloat()); lineTo(size / 2f, size * 0.7f); lineTo(0f, size.toFloat()); close() }
+        c.drawPath(path, paint)
+        return b
     }
 
     private fun vanView(name: String, color: String): View = TextView(this).apply {

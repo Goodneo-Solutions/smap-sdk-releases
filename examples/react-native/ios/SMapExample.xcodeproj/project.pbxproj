@@ -224,7 +224,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\ndst=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\nmkdir -p \"$dst\"\nfor fw in MapLibre.framework GLTFKit2.framework; do\n  src=\"${BUILT_PRODUCTS_DIR}/$fw\"\n  [ -d \"$src\" ] || src=\"${BUILT_PRODUCTS_DIR}/PackageFrameworks/$fw\"\n  if [ ! -d \"$src\" ]; then\n    echo \"error: $fw not found in ${BUILT_PRODUCTS_DIR}; run pod install again\"\n    exit 1\n  fi\n  rm -rf \"$dst/$fw\"\n  cp -R \"$src\" \"$dst/\"\n  if [ \"${CODE_SIGNING_ALLOWED}\" = \"YES\" ] && [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --preserve-metadata=identifier,entitlements \"$dst/$fw\"\n  fi\ndone\n";
+			shellScript = "set -e\ndst=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}\"\nmkdir -p \"$dst\"\nfor fw in MapLibre.framework GLTFKit2.framework SMap.framework SMapCore.framework; do\n  src=\"${BUILT_PRODUCTS_DIR}/$fw\"\n  [ -d \"$src\" ] || src=\"${BUILT_PRODUCTS_DIR}/PackageFrameworks/$fw\"\n  if [ ! -d \"$src\" ]; then\n    case \" SMap.framework SMapCore.framework \" in *\" $fw \"*) continue ;; esac\n    echo \"error: $fw not found in ${BUILT_PRODUCTS_DIR}; run pod install again\"\n    exit 1\n  fi\n  rm -rf \"$dst/$fw\"\n  cp -R \"$src\" \"$dst/\"\n  if [ \"${CODE_SIGNING_ALLOWED}\" = \"YES\" ] && [ -n \"${EXPANDED_CODE_SIGN_IDENTITY}\" ]; then\n    codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --preserve-metadata=identifier,entitlements \"$dst/$fw\"\n  fi\ndone\n";
 		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

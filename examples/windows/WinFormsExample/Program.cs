@@ -59,6 +59,11 @@ internal sealed class DemoForm : Form
         map.AddTool("zoom", SMapToolKind.Zoom);
         map.AddTool("compass", SMapToolKind.Compass);
         map.AddTool("scale", SMapToolKind.Scale);
+        // 1.5.0: circles in metres with a hover look, a double click that does not zoom, and a search over the app's own places.
+        map.AddCircles("reach", DemoData.Depots(), DemoData.Reach());
+        map.On(SMapEventType.DoubleClick, e => status.Text = $"Double click at {e.Position?.Lat:F5}, {e.Position?.Lng:F5}", preventDefault: true);
+        map.On(SMapEventType.Unavailable, e => status.Text = "The map cannot be shown: " + e.Reason);
+        map.AddTool("search", new SMapSearchOptions(DemoData.Search) { MinChars = 2, OnPick = r => status.Text = r.Label });
         map.ToolsChanged += (_, e) => status.Text = "Hidden tools: " + string.Join(", ", e.Hidden);
         map.Ready += (_, _) => bar.Enabled = true;
         map.Error += (_, e) => status.Text = e.Exception.Message;
