@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@superrouteca/smap": "1.2.15",
-    "@superrouteca/smap-react": "1.2.15",
+    "@superrouteca/smap": "1.2.16",
+    "@superrouteca/smap-react": "1.2.16",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
