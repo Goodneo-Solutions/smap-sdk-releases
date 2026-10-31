@@ -14,7 +14,7 @@ import {
   Circles, Data, Lines, Points, Polygons, SMap, SearchTool, StyleLayer, Tool, geo, styles as FLAVORS,
   type MapFeature, type SMapHandle, type SearchResult, type StyleFlavor,
 } from '@superrouteca/smap-react-native';
-import { selfCheck } from './selfCheck';
+import { selfCheck, type TapsDriver } from './selfCheck';
 
 const BLUE_WATER = { water: { color: '#9cc0e6' }, pois: { visible: false } };
 
@@ -27,6 +27,22 @@ const KML = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengi
 const SMAP_KEY = '';
 /** Where the self-check posts its results (e.g. http://localhost:8765/ with adb reverse); empty: no check. */
 const SELF_CHECK_URL = '';
+/**
+ * The driver of the self-check's 1.5.5 tap checks (see selfCheck.ts): the Android emulator's listener on the computer,
+ * or the iOS example app's own debug driver; empty: no tap checks.
+ */
+const TAPS_DRIVER = '';
+
+function tapsDriver(box: React.RefObject<React.ComponentRef<typeof View> | null>): TapsDriver | undefined {
+  if (!TAPS_DRIVER) { return undefined; }
+  return {
+    url: TAPS_DRIVER,
+    origin: () => new Promise((resolve) => {
+      if (!box.current) { resolve({ x: 0, y: 0 }); return; }
+      box.current.measureInWindow((x, y) => resolve({ x, y }));
+    }),
+  };
+}
 
 // A white arrow (an SDF-friendly shape) as base64 PNG, added under the name `arrow`, which the basemap's sprite has too.
 const ARROW = 'iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAASklEQVR4nO3NuwkAMAwDUe+/tNOkMoTIHxUC3wD3zDap/KYJeEgLiPNxhAq85mMIFfjN2wgVQOdlhApk52mEClTnMEIFunMI2WIHKJeFl7tO4Y0AAAAASUVORK5CYII=';
@@ -101,6 +117,7 @@ function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress: ()
 
 export default function App() {
   const map = useRef<SMapHandle | null>(null);
+  const mapBox = useRef<React.ComponentRef<typeof View> | null>(null);
   const [flavor, setFlavor] = useState<StyleFlavor>('light');
   const [language, setLanguage] = useState('en');
   const [buildings, setBuildings] = useState(false);
@@ -140,86 +157,90 @@ export default function App() {
         <Chip label="Picture" onPress={() => { map.current?.export({ pixelRatio: 2 }).then(setPicture, (e: Error) => setTapped(e.message)); }} />
         <Chip label="Small map" onPress={() => setSmall(true)} />
       </View>
-      <SMap
-        ref={map}
-        apiKey={SMAP_KEY || undefined}
-        style={flavor}
-        language={language}
-        center={CENTER}
-        zoom={11}
-        buildings3D={buildings}
-        basemap={blue ? BLUE_WATER : undefined}
-        containerStyle={ui.map}
-        onError={(e) => setTapped(e.message)}
-        tools={{ hidden: hiddenTools }}
-        onToolsChange={(e) => { hiddenTools = e.hidden; }}
-        onUnavailable={(e) => setTapped('The map cannot be shown: ' + e.reason)}
-        onReady={(m) => {
-          m.addHeatmap('density', points.slice(0, 400), { radius: 18, opacity: 0.6, blur: 12, minOpacity: 0.3 });
-          // Images: an app image named like a basemap one, an SDF pin coloured per feature, a glyph badge.
-          void m.addImage('arrow', { base64: ARROW }, { pixelRatio: 1 }).then(() => {
-            m.addPoints('fleet', [{ id: 'truck', course: truck.current.course, lng: truck.current.lng, lat: truck.current.lat }], {
-              icon: 'arrow', iconAnchor: 'center', idProperty: 'id', rotation: { property: 'course', default: 0 }, zIndex: 5,
+      {/* The box around the map: where the map is in the window, for the self-check's tap driver. */}
+      <View ref={mapBox} collapsable={false} style={ui.map}>
+        <SMap
+          ref={map}
+          apiKey={SMAP_KEY || undefined}
+          style={flavor}
+          language={language}
+          center={CENTER}
+          zoom={11}
+          buildings3D={buildings}
+          basemap={blue ? BLUE_WATER : undefined}
+          containerStyle={ui.fill}
+          tapTolerance={TAPS_DRIVER ? 20 : undefined}
+          onError={(e) => setTapped(e.message)}
+          tools={{ hidden: hiddenTools }}
+          onToolsChange={(e) => { hiddenTools = e.hidden; }}
+          onUnavailable={(e) => setTapped('The map cannot be shown: ' + e.reason)}
+          onReady={(m) => {
+            m.addHeatmap('density', points.slice(0, 400), { radius: 18, opacity: 0.6, blur: 12, minOpacity: 0.3 });
+            // Images: an app image named like a basemap one, an SDF pin coloured per feature, a glyph badge.
+            void m.addImage('arrow', { base64: ARROW }, { pixelRatio: 1 }).then(() => {
+              m.addPoints('fleet', [{ id: 'truck', course: truck.current.course, lng: truck.current.lng, lat: truck.current.lat }], {
+                icon: 'arrow', iconAnchor: 'center', idProperty: 'id', rotation: { property: 'course', default: 0 }, zIndex: 5,
+              });
             });
-          });
-          void m.addImage('pin', { base64: ARROW }, { sdf: true }).then(() => {
-            m.addPoints('depots', DEPOTS, {
-              icon: 'pin', iconColor: { property: 'color', default: '#111827' }, idProperty: 'id', label: 'name',
-              priority: { property: 'rank' }, allowOverlap: false, labelSize: (p: Record<string, unknown>) => 11 + Number(p.rank),
-              onDblClick: (f: MapFeature) => setTapped('Double tap: ' + String(f.properties.name)),
+            void m.addImage('pin', { base64: ARROW }, { sdf: true }).then(() => {
+              m.addPoints('depots', DEPOTS, {
+                icon: 'pin', iconColor: { property: 'color', default: '#111827' }, idProperty: 'id', label: 'name',
+                priority: { property: 'rank' }, allowOverlap: false, labelSize: (p: Record<string, unknown>) => 11 + Number(p.rank),
+                onDblClick: (f: MapFeature) => setTapped('Double tap: ' + String(f.properties.name)),
+              });
             });
-          });
-          void m.addGlyphImage('star', { glyph: '★', color: '#ffffff', background: '#0ea5e9', size: 20 });
-          if (SELF_CHECK_URL) { setTimeout(() => { void selfCheck(m, SELF_CHECK_URL).then((r) => setTapped(r)); }, 3000); }
-          m.setTerrain({ tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], attribution: 'Terrain: Mapzen / AWS' });
-          m.addCanvasTiles('tint', () => TILE, { opacity: 0.5 });
-          m.setVisible('tint', false);
-          m.addModels('trucks3d', [{ id: 't1', bearing: 0, tint: '#dc2626', lng: -79.388, lat: 43.6555 }, { id: 't2', bearing: 90, lng: -79.382, lat: 43.6555 }], {
-            model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb',
-            size: 40, heading: { property: 'bearing', default: 0 }, idProperty: 'id', color: { property: 'tint' },
-          });
-          // Three vans as React views: a long press drags one.
-          m.addCustomMarkers('vans', VANS, {
-            idProperty: 'id',
-            anchor: 'bottom',
-            render: (p) => <Text style={[ui.van, { backgroundColor: String(p.color) }]}>{String(p.name)}</Text>,
-            onTap: (f) => setTapped(String(f.properties.name)),
-            draggable: true,
-            onDragEnd: (f, e) => setTapped(`${f.properties.name}: ${e.lat.toFixed(5)}, ${e.lng.toFixed(5)}`),
-          });
-          m.drawTool({
-            toolbar: 'bottom-right', measure: true, snapLayers: ['stops'], allowSelfIntersection: false,
-            style: (p) => (p.kind === 'no-go' ? { color: '#dc2626', dash: [2, 2] } : null),
-            onChange: (e) => setTapped(`${e.type}: ${e.features.features.length} shapes`),
-            onDrawing: (e) => setTapped(`${e.mode}: ${Math.round(e.length)} m, ${Math.round(e.area)} m²${e.valid ? '' : ' (crosses itself)'}`),
-          });
-        }}
-      >
-        <Tool id="zoom" kind="zoom" />
-        <Tool id="compass" kind="compass" />
-        <Tool id="scale" kind="scale" />
-        <SearchTool id="search" search={(text) => PLACES.filter((p) => p.label.toLowerCase().includes(text.toLowerCase()))}
-          onPick={(r) => setTapped('Picked ' + r.label)} minChars={2} />
-        <Tool id="layers" kind="layers"
-          base={[{ id: 'streets', label: 'Streets' }, { id: 'satellite', label: 'Satellite', imagery: SATELLITE }]}
-          overlays={[{ id: 'density', label: 'Heat map', layers: ['density'] }, { id: 'tint', label: 'Painted tiles', layers: ['tint'], visible: false }]} />
-        <Tool id="legend" label="Legend" position="bottom-left">
-          <Text style={ui.legend}>Green: route · Orange: depot</Text>
-        </Tool>
-        <Points id="stops" data={points} options={{ cluster: { ring: 'color' }, label: 'name', zIndex: 2, tooltip: '{name}' }} onTap={(p) => setTapped(String(p.name))} />
-        <Lines id="route" data={ROUTE} options={{ color: '#16a34a', width: 5, zIndex: 1, label: 'name', arrows: { spacing: '15%' } }} />
-        <Polygons id="zones" data={ZONES}
-          options={{ idProperty: 'code', fill: { property: 'color', default: '#64748b' }, opacity: 0.25, hoverState: true, outlineDash: [2, 1],
-            states: { hover: { opacity: 0.45 }, selected: { outline: '#111827', outlineWidth: 3, opacity: 0.5 } } }}
-          featureStates={selected ? { [selected]: { selected: true } } : {}}
-          onDblClick={(f) => setSelected(f.key === selected ? null : f.key)}
-          onContextMenu={(f) => setTapped('Long press: ' + String(f.properties.name))} />
-        <Circles id="reach" data={DEPOTS} options={{ radius: { property: 'radius_m' }, fill: '#f59e0b', opacity: 0.2, outline: '#b45309', hoverState: true, idProperty: 'id',
-          states: { hover: { opacity: 0.4 } } }} onTap={(p) => setTapped(String(p.name) + ': ' + String(p.radius_m) + ' m')} />
-        <Polygons id="depot" data={AREA} options={{ fill: '#f97316', extrude: { height: 'height' } }} />
-        <StyleLayer layer={PARKS_OUTLINE} slot="labels" />
-        <Data id="kml" data={KML} format="kml" onTap={(p) => setTapped(String(p.name))} />
-      </SMap>
+            void m.addGlyphImage('star', { glyph: '★', color: '#ffffff', background: '#0ea5e9', size: 20 });
+            if (SELF_CHECK_URL) { setTimeout(() => { void selfCheck(m, SELF_CHECK_URL, tapsDriver(mapBox)).then((r) => setTapped(r)); }, 3000); }
+            m.setTerrain({ tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'], attribution: 'Terrain: Mapzen / AWS' });
+            m.addCanvasTiles('tint', () => TILE, { opacity: 0.5 });
+            m.setVisible('tint', false);
+            m.addModels('trucks3d', [{ id: 't1', bearing: 0, tint: '#dc2626', lng: -79.388, lat: 43.6555 }, { id: 't2', bearing: 90, lng: -79.382, lat: 43.6555 }], {
+              model: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb',
+              size: 40, heading: { property: 'bearing', default: 0 }, idProperty: 'id', color: { property: 'tint' },
+            });
+            // Three vans as React views: a long press drags one.
+            m.addCustomMarkers('vans', VANS, {
+              idProperty: 'id',
+              anchor: 'bottom',
+              render: (p) => <Text style={[ui.van, { backgroundColor: String(p.color) }]}>{String(p.name)}</Text>,
+              onTap: (f) => setTapped(String(f.properties.name)),
+              draggable: true,
+              onDragEnd: (f, e) => setTapped(`${f.properties.name}: ${e.lat.toFixed(5)}, ${e.lng.toFixed(5)}`),
+            });
+            m.drawTool({
+              toolbar: 'bottom-right', measure: true, snapLayers: ['stops'], allowSelfIntersection: false,
+              style: (p) => (p.kind === 'no-go' ? { color: '#dc2626', dash: [2, 2] } : null),
+              onChange: (e) => setTapped(`${e.type}: ${e.features.features.length} shapes`),
+              onDrawing: (e) => setTapped(`${e.mode}: ${Math.round(e.length)} m, ${Math.round(e.area)} m²${e.valid ? '' : ' (crosses itself)'}`),
+            });
+          }}
+        >
+          <Tool id="zoom" kind="zoom" />
+          <Tool id="compass" kind="compass" />
+          <Tool id="scale" kind="scale" />
+          <SearchTool id="search" search={(text) => PLACES.filter((p) => p.label.toLowerCase().includes(text.toLowerCase()))}
+            onPick={(r) => setTapped('Picked ' + r.label)} minChars={2} />
+          <Tool id="layers" kind="layers"
+            base={[{ id: 'streets', label: 'Streets' }, { id: 'satellite', label: 'Satellite', imagery: SATELLITE }]}
+            overlays={[{ id: 'density', label: 'Heat map', layers: ['density'] }, { id: 'tint', label: 'Painted tiles', layers: ['tint'], visible: false }]} />
+          <Tool id="legend" label="Legend" position="bottom-left">
+            <Text style={ui.legend}>Green: route · Orange: depot</Text>
+          </Tool>
+          <Points id="stops" data={points} options={{ cluster: { ring: 'color' }, label: 'name', zIndex: 2, tooltip: '{name}' }} onTap={(p) => setTapped(String(p.name))} />
+          <Lines id="route" data={ROUTE} options={{ color: '#16a34a', width: 5, zIndex: 1, label: 'name', arrows: { spacing: '15%' } }} />
+          <Polygons id="zones" data={ZONES}
+            options={{ idProperty: 'code', fill: { property: 'color', default: '#64748b' }, opacity: 0.25, hoverState: true, outlineDash: [2, 1],
+              states: { hover: { opacity: 0.45 }, selected: { outline: '#111827', outlineWidth: 3, opacity: 0.5 } } }}
+            featureStates={selected ? { [selected]: { selected: true } } : {}}
+            onDblClick={(f) => setSelected(f.key === selected ? null : f.key)}
+            onContextMenu={(f) => setTapped('Long press: ' + String(f.properties.name))} />
+          <Circles id="reach" data={DEPOTS} options={{ radius: { property: 'radius_m' }, fill: '#f59e0b', opacity: 0.2, outline: '#b45309', hoverState: true, idProperty: 'id',
+            states: { hover: { opacity: 0.4 } } }} onTap={(p) => setTapped(String(p.name) + ': ' + String(p.radius_m) + ' m')} />
+          <Polygons id="depot" data={AREA} options={{ fill: '#f97316', extrude: { height: 'height' } }} />
+          <StyleLayer layer={PARKS_OUTLINE} slot="labels" />
+          <Data id="kml" data={KML} format="kml" onTap={(p) => setTapped(String(p.name))} />
+        </SMap>
+      </View>
       <Text style={ui.status} numberOfLines={1}>{tapped}</Text>
       <Modal visible={!!picture} transparent animationType="fade" onRequestClose={() => setPicture(null)}>
         <Pressable style={ui.dialog} onPress={() => setPicture(null)}>
@@ -258,6 +279,7 @@ const ui = StyleSheet.create({
   chipText: { color: '#111827', fontSize: 13 },
   chipTextOn: { color: '#ffffff' },
   map: { flex: 1, marginTop: 8 },
+  fill: { flex: 1 },
   status: { padding: 8, color: '#374151' },
   van: { color: '#ffffff', fontSize: 12, borderRadius: 6, overflow: 'hidden', paddingHorizontal: 6, paddingVertical: 2 },
   legend: { backgroundColor: '#ffffff', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12 },
