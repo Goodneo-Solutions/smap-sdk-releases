@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- This module was also published with a richer model, Gradle metadata,  -->
+  <!-- which should be used instead. Do not delete the following line which  -->
+  <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+  <!-- that they should prefer consuming it instead. -->
+  <!-- do_not_remove: published-with-gradle-metadata -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>ca.superroute</groupId>
+  <artifactId>smap</artifactId>
+  <version>1.5.12</version>
+  <packaging>aar</packaging>
+  <name>sMap for Android</name>
+  <description>sMap for Android: maps from Superroute's sMap service in an Android view.</description>
+  <url>https://open.superroute.ca/developer/smap</url>
+  <organization>
+    <name>Goodneo Solutions</name>
+    <url>https://open.superroute.ca</url>
+  </organization>
+  <licenses>
+    <license>
+      <name>Superroute SDK License</name>
+      <url>https://open.superroute.ca/developer/license</url>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/Goodneo-Solutions/smap-sdk-releases</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>org.maplibre.gl</groupId>
+      <artifactId>android-sdk</artifactId>
+      <version>13.6.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlinx</groupId>
+      <artifactId>kotlinx-coroutines-android</artifactId>
+      <version>1.10.2</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-stdlib</artifactId>
+      <version>2.2.20</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.10.1</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.squareup.okhttp3</groupId>
+      <artifactId>okhttp</artifactId>
+      <version>4.12.0</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android.filament</groupId>
+      <artifactId>filament-android</artifactId>
+      <version>1.71.5</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android.filament</groupId>
+      <artifactId>gltfio-android</artifactId>
+      <version>1.71.5</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.android.filament</groupId>
+      <artifactId>filament-utils-android</artifactId>
+      <version>1.71.5</version>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+</project>
