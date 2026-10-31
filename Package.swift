@@ -1,11 +1,11 @@
 // swift-tools-version:5.9
 import PackageDescription
 
-// sMap for iOS and macOS, release 1.5.1. Built from the sMap SDK by its release workflow; do not edit by hand.
+// sMap for iOS and macOS, release 1.5.2. Built from the sMap SDK by its release workflow; do not edit by hand.
 // - SMap (iOS 14+): the map in a native view (UIKit and SwiftUI).
 // - SMapMac (macOS 12+): the map in the system web view running the bundled Web SDK (AppKit and SwiftUI).
 // Both re-export SMapCore. Documentation: https://open.superroute.ca/developer/smap
-let release = "https://github.com/Goodneo-Solutions/smap-sdk-releases/releases/download/1.5.1"
+let release = "https://github.com/Goodneo-Solutions/smap-sdk-releases/releases/download/1.5.2"
 
 let package = Package(
     name: "SMap",
@@ -22,17 +22,17 @@ let package = Package(
         .binaryTarget(
             name: "SMapCore",
             url: "\(release)/SMapCore.xcframework.zip",
-            checksum: "723cf7e681fe5d6d8dbdafb7650e5ac9204cd15c1e2e2fbff511123928791c00"
+            checksum: "05979104c4113913ba91c1304849641e469dde1224ea93245e251fdcd8aed432"
         ),
         .binaryTarget(
             name: "SMap",
             url: "\(release)/SMap.xcframework.zip",
-            checksum: "51045f8799e6f1277003c9a2f12f5e59e1eea633a47c543011bcaa3aaf8ba93b"
+            checksum: "31ceaa45c604d15d344cb9af070c1e1cb17a5ecd826a15a350ca56b74aaec1af"
         ),
         .binaryTarget(
             name: "SMapMac",
             url: "\(release)/SMapMac.xcframework.zip",
-            checksum: "cdfc6f620c1a478bdd95f5e5e7aa8caf1dce5ce542cd32499393e5772b5d2a4c"
+            checksum: "4c9b9d64402ec1ce791c828bade133e15f87731309fde7fd9cb0865a366bc05b"
         ),
         .target(
             name: "SMapIOS",
