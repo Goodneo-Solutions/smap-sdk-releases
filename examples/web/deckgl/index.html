@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>sMap and deck.gl</title>
   <!-- Serve this folder (npx serve .) and open /?key=smk_…&mode=vector|raster|interleaved -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.7/dist/smap.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.8/dist/smap.css">
   <style>
     html, body { margin: 0; height: 100%; font: 14px Helvetica, Arial, sans-serif; }
     #map { position: absolute; inset: 0; }
@@ -18,8 +18,8 @@
       "@deck.gl/layers": "https://cdn.jsdelivr.net/npm/@deck.gl/layers@9.4.0/+esm",
       "@deck.gl/geo-layers": "https://cdn.jsdelivr.net/npm/@deck.gl/geo-layers@9.4.0/+esm",
       "@deck.gl/mapbox": "https://cdn.jsdelivr.net/npm/@deck.gl/mapbox@9.4.0/+esm",
-      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.7/dist/smap.mjs",
-      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.7/dist/smap-client.mjs"
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.8/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.8/dist/smap-client.mjs"
     }
   }
   </script>
@@ -33,7 +33,7 @@
   <script type="module">
     import { Deck } from '@deck.gl/core';
     import { ArcLayer } from '@deck.gl/layers';
-    import { createSession, createVectorBasemapLayer, createRasterBasemapLayer, createSMapDeck, addAttribution, pointsLayers, linesLayers, popupTooltip } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-deckgl@1.5.7/src/index.js';
+    import { createSession, createVectorBasemapLayer, createRasterBasemapLayer, createSMapDeck, addAttribution, pointsLayers, linesLayers, popupTooltip } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-deckgl@1.5.8/src/index.js';
 
     const q = new URLSearchParams(location.search);
     for (const a of document.querySelectorAll('#bar a')) { a.search += q.get('key') ? '&key=' + q.get('key') : ''; }
