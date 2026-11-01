@@ -6,7 +6,7 @@
     <Product>sMap WinForms Example</Product>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Superroute.SMap.WinForms" Version="1.5.12" />
+    <PackageReference Include="Superroute.SMap.WinForms" Version="1.5.15" />
     <Compile Include="../Shared/*.cs" Link="Shared/%(Filename)%(Extension)" />
   </ItemGroup>
   <!-- What the NuGet package brings to an app by itself (buildTransitive); a project reference does not. -->

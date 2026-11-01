@@ -12,8 +12,8 @@
   {
     "imports": {
       "cesium": "https://cdn.jsdelivr.net/npm/cesium@1.146.0/+esm",
-      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.12/dist/smap.mjs",
-      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.12/dist/smap-client.mjs"
+      "@superrouteca/smap": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.15/dist/smap.mjs",
+      "@superrouteca/smap/client": "https://cdn.jsdelivr.net/npm/@superrouteca/smap@1.5.15/dist/smap-client.mjs"
     }
   }
   </script>
@@ -22,7 +22,7 @@
   <div id="globe"></div>
   <script type="module">
     import { Viewer, Cartesian3 } from 'cesium';
-    import { createBaseLayer, addSMapData } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-cesium@1.5.12/src/index.js';
+    import { createBaseLayer, addSMapData } from 'https://cdn.jsdelivr.net/npm/@superrouteca/smap-cesium@1.5.15/src/index.js';
 
     const q = new URLSearchParams(location.search);
     const access = { apiKey: q.get('key') || undefined, baseUrl: q.get('base') || undefined };
