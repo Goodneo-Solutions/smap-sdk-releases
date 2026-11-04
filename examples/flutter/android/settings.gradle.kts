@@ -24,3 +24,9 @@ plugins {
 }
 
 include(":app")
+
+// sRender (sRender DESIGN §12 N1), only on the engine branches: SRENDER_ANDROID names sRender's Android library.
+System.getenv("SRENDER_ANDROID")?.let { path ->
+    include(":srender")
+    project(":srender").projectDir = file(path)
+}

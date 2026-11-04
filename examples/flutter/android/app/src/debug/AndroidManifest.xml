@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug builds only: plain HTTP to a local map service (SMAP_BASE_URL=http://<mac>:8765, sRender's fixtures). -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

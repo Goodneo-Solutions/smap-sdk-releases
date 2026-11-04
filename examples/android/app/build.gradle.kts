@@ -29,6 +29,9 @@ android {
         buildConfig = true
     }
 
+    // sRender's native layer needs Android 8 (settings.gradle.kts adds it only on the engine branches).
+    if (rootProject.findProject(":srender") != null) defaultConfig { minSdk = 26 }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -42,5 +45,5 @@ kotlin {
 }
 
 dependencies {
-    implementation("ca.superroute:smap:1.5.15")
+    implementation("ca.superroute:smap:1.6.0")
 }

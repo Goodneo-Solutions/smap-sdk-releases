@@ -1,7 +1,8 @@
 buildscript {
     ext {
         buildToolsVersion = "36.0.0"
-        minSdkVersion = 24
+        // sRender's native layer needs Android 8 (settings.gradle adds it only on the engine branches).
+        minSdkVersion = System.getenv("SRENDER_ANDROID") != null ? 26 : 24
         compileSdkVersion = 36
         targetSdkVersion = 36
         ndkVersion = "28.2.13676358"

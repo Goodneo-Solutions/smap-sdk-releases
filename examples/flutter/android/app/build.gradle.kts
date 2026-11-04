@@ -19,7 +19,8 @@ android {
         applicationId = "ca.superroute.smap_flutter_example"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // sRender's native layer needs Android 8 (settings.gradle.kts adds it only on the engine branches).
+        minSdk = if (rootProject.findProject(":srender") != null) maxOf(26, flutter.minSdkVersion) else flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

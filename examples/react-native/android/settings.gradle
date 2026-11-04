@@ -4,3 +4,9 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autoli
 rootProject.name = 'SMapExample'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
+
+// sRender (sRender DESIGN §12 N1), only on the engine branches: SRENDER_ANDROID names sRender's Android library.
+if (System.getenv("SRENDER_ANDROID") != null) {
+    include ':srender'
+    project(':srender').projectDir = new File(System.getenv("SRENDER_ANDROID"))
+}

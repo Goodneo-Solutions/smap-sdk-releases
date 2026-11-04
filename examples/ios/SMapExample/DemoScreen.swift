@@ -34,6 +34,8 @@ struct DemoScreen: View {
         if let base = env["SMAP_BASE_URL"].flatMap(URL.init(string:)) { o.baseURL = base }
         if let token = env["SMAP_TOKEN"], !token.isEmpty { o.token = token }
         if let key = env["SMAP_API_KEY"], !key.isEmpty { o.apiKey = key }
+        // SMAP_RENDERER=srender: drawn by sRender (an SDK built with SRENDER_PATH), else MapLibre.
+        if env["SMAP_RENDERER"] == "srender" { o.renderer = .srender }
         // A start view for checks, e.g. SMAP_VIEW=43.6555,-79.385,17,55 (lat, lng, zoom, tilt).
         if let v = env["SMAP_VIEW"]?.split(separator: ",").compactMap({ Double($0) }), v.count >= 3 {
             o.center = CLLocationCoordinate2D(latitude: v[0], longitude: v[1]); o.zoom = v[2]
@@ -45,6 +47,22 @@ struct DemoScreen: View {
     }
 
     private static let toolsKey = "smap-example-hidden-tools"
+
+    /// SMAP_PMTILES=<url>: the roads of a PMTiles archive at that address, drawn red over the map (an archive read by
+    /// ranges); SMAP_TRANSITION=1 as well: two seconds after, the roads ease to blue over 3 s (as the Android example's
+    /// `--es pmtiles` / `--ez transition`).
+    private func pmtilesCheck(_ map: SMapView) {
+        let env = ProcessInfo.processInfo.environment
+        guard let archive = env["SMAP_PMTILES"], !archive.isEmpty else { return }
+        var o = SMapVectorTileOptions(layers: [["id": "pm-roads", "type": "line", "source-layer": "roads", "paint": ["line-color": "#e11d48", "line-width": 3]]])
+        o.pmtiles = archive
+        do { try map.addVectorTiles("pm", o) } catch { NSLog("sMap example: %@", "\(error)") }
+        guard env["SMAP_TRANSITION"] == "1" else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            try? map.setPaint("pm-roads", "line-color-transition", ["duration": 3000, "delay": 0])
+            try? map.setPaint("pm-roads", "line-color", "#2563eb")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -60,7 +78,7 @@ struct DemoScreen: View {
                     addGaps(map)
                     addGaps150(map)
                     addTools(map)
-                    Task { @MainActor in await map.ready(); check(map); check150(map) }
+                    Task { @MainActor in await map.ready(); check(map); check150(map); pmtilesCheck(map) }
                 }
                 .ignoresSafeArea(edges: .top)
                 if !tapped.isEmpty {

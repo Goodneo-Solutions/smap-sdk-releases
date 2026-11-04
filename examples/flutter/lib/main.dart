@@ -13,6 +13,8 @@ const String token = String.fromEnvironment('SMAP_TOKEN');
 /// Or a map key whose allowlist names this app: `--dart-define=SMAP_API_KEY=smk_...`.
 const String apiKey = String.fromEnvironment('SMAP_API_KEY');
 const String baseUrl = String.fromEnvironment('SMAP_BASE_URL', defaultValue: 'https://tile.srsr.ca');
+// `--dart-define=SMAP_RENDERER=srender`: drawn by sRender where the native SDK carries it.
+const String rendererName = String.fromEnvironment('SMAP_RENDERER');
 
 /// Where the example keeps the hidden map tools (the SDK keeps no state itself).
 const String toolsKey = 'smap-example-hidden-tools';
@@ -236,6 +238,7 @@ class _DemoScreenState extends State<DemoScreen> {
                 language: _language,
                 center: center,
                 zoom: 11,
+                renderer: rendererName == 'srender' ? SMapRenderer.srender : SMapRenderer.maplibre,
                 tools: SMapToolsOptions(
                   hidden: (prefs.getStringList(toolsKey) ?? const []).toSet(),
                   onChange: (change) => prefs.setStringList(toolsKey, change.hidden),

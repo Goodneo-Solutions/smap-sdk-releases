@@ -25,6 +25,10 @@ const KML = '<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengi
   + '<Placemark><name>Union</name><Point><coordinates>-79.3806,43.6453</coordinates></Point></Placemark></Document></kml>';
 
 const SMAP_KEY = '';
+// Another map service (e.g. sRender's fixtures, http://<mac>:8765), and `srender` to draw with sRender where the
+// native SDK carries it; empty: the public service, MapLibre.
+const SMAP_BASE_URL = '';
+const SMAP_RENDERER = '';
 /** Where the self-check posts its results (e.g. http://localhost:8765/ with adb reverse); empty: no check. */
 const SELF_CHECK_URL = '';
 /**
@@ -162,6 +166,8 @@ export default function App() {
         <SMap
           ref={map}
           apiKey={SMAP_KEY || undefined}
+          baseUrl={SMAP_BASE_URL || undefined}
+          renderer={SMAP_RENDERER === 'srender' ? 'srender' : undefined}
           style={flavor}
           language={language}
           center={CENTER}

@@ -13,6 +13,7 @@ import android.widget.Spinner
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import ca.superroute.smap.SMapVectorTilesOptions
 import ca.superroute.smap.SMap
 import ca.superroute.smap.SMapAnchor
 import ca.superroute.smap.SMapCluster
@@ -104,6 +105,8 @@ class MainActivity : Activity() {
                 zoom = 11.0,
                 onError = { e -> runOnUiThread { Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show() } },
                 tools = SMapToolsOptions(hidden = savedTools(), onChange = { change -> saveTools(change.hidden) }),
+                // `adb shell am start … --es renderer srender`: drawn by sRender where this build carries it.
+                renderer = if (intent?.getStringExtra("renderer") == "srender") ca.superroute.smap.SMapRenderer.SRENDER else ca.superroute.smap.SMapRenderer.MAPLIBRE,
             ),
         )
         map.onCreate(savedInstanceState)
@@ -191,6 +194,37 @@ class MainActivity : Activity() {
             }
         }
         bar.addView(offline)
+        // `--ez offline true`: the same as a tap on the button once the map is ready (devices held upright, where
+        // the bar has no room for it).
+        if (intent?.getBooleanExtra("offline", false) == true) map.ready { offline.performClick() }
+        // `--es pmtiles <url>`: the roads of a PMTiles archive at that address, drawn red over the map (an archive read
+        // by ranges); `--ez transition true` as well: two seconds after, the roads ease to blue over 3 s.
+        intent?.getStringExtra("pmtiles")?.let { archive ->
+            map.ready {
+                map.addVectorTiles(
+                    "pm",
+                    SMapVectorTilesOptions(
+                        pmtiles = archive,
+                        layers = listOf(mapOf("id" to "pm-roads", "type" to "line", "source-layer" to "roads", "paint" to mapOf("line-color" to "#e11d48", "line-width" to 3))),
+                    ),
+                )
+                if (intent?.getBooleanExtra("transition", false) == true) {
+                    map.postDelayed({
+                        map.setPaint("pm-roads", "line-color-transition", mapOf("duration" to 3000, "delay" to 0))
+                        map.setPaint("pm-roads", "line-color", "#2563eb")
+                    }, 2000)
+                }
+            }
+        }
+
+        // `--es label <text>`: one point at the centre labelled with that text (line breaking of any script).
+        intent?.getStringExtra("label")?.let { text ->
+            map.ready {
+                map.addPoints("label-check", listOf(SMapPoint(lat = 43.65, lng = -79.38, properties = mapOf("name" to text))), SMapPointOptions(label = "name", zIndex = 9))
+                // After the example's own camera moves, the view is brought onto the label.
+                map.postDelayed({ map.flyTo(org.maplibre.android.geometry.LatLng(43.65, -79.38), 15.0) }, 15000)
+            }
+        }
 
         // Fit the view to the route, the zones and the block together (G15).
         val fit = Button(this)
