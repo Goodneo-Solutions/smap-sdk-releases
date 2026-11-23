@@ -75,6 +75,7 @@ struct DemoScreen: View {
                         map.mapView.setCamera(camera, animated: false)
                     }
                     addDemoLayers(map)
+                    addIndoorDemo(map)
                     addGaps(map)
                     addGaps150(map)
                     addTools(map)
@@ -200,6 +201,38 @@ struct DemoScreen: View {
             Self.drawTool = map.drawTool(draw)
         } catch {
             tapped = error.localizedDescription
+        }
+    }
+
+    /// The indoor layer: a small two-level site (sIndoor's layer GeoJSON) near the route, a dot shown on level 1 only.
+    private func addIndoorDemo(_ map: SMapView) {
+        let anchor = SMapIndoorAnchor(lat: 43.6505, lon: -79.3835, rotationDeg: 20)
+        func ring(_ x0: Double, _ y0: Double, _ x1: Double, _ y1: Double) -> [[Double]] {
+            [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)].map { p in
+                let c = SMapIndoor.levelToCoordinate(anchor, x: p.0, y: p.1)
+                return [c.longitude, c.latitude]
+            }
+        }
+        func feature(_ r: [[Double]], _ props: [String: Any]) -> [String: Any] {
+            ["type": "Feature", "geometry": ["type": "Polygon", "coordinates": [r]], "properties": props]
+        }
+        let levels: [[String: Any]] = [["id": "L0", "ordinal": 0, "kind": "indoor", "anchor": anchor.json], ["id": "L1", "ordinal": 1, "kind": "indoor", "anchor": anchor.json]]
+        let layer: [String: Any] = ["type": "FeatureCollection", "frame": "wgs84", "site": "demo", "version": 1, "levels": levels, "features": [
+            feature(ring(0, 0, 60000, 40000), ["layer": "level", "level": "L0", "ordinal": 0]),
+            feature(ring(5000, 5000, 9000, 35000), ["layer": "obstacle", "level": "L0", "ordinal": 0, "type": "shelf", "ref": "A"]),
+            feature(ring(30000, 0, 31000, 40000), ["layer": "obstacle", "level": "L0", "ordinal": 0, "type": "wall"]),
+            feature(ring(10000, 10000, 50000, 30000), ["layer": "level", "level": "L1", "ordinal": 1]),
+        ]]
+        Task { @MainActor in
+            do {
+                try await map.addIndoor("demo", source: .geojson(layer), options: SMapIndoorOptions(controlPosition: .bottomRight, onClick: { click in
+                    smapCheck("indoor click: \((click.feature["properties"] as? [String: Any])?["type"] ?? "level")")
+                }))
+                var dot = SMapPointOptions(color: UIColor(smapHex: "#2563eb"))
+                dot.indoor = SMapIndoorRef(id: "demo", level: "L1")
+                let at = try map.indoorToCoordinate("demo", level: "L1", x: 30000, y: 20000)
+                try map.addPoints("indoor-dot", [SMapPoint(lat: at.latitude, lng: at.longitude)], options: dot)
+            } catch { NSLog("sMap example: %@", "\(error)") }
         }
     }
 

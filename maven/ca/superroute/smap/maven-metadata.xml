@@ -3,8 +3,8 @@
   <groupId>ca.superroute</groupId>
   <artifactId>smap</artifactId>
   <versioning>
-    <latest>1.6.2</latest>
-    <release>1.6.2</release>
+    <latest>1.6.5</latest>
+    <release>1.6.5</release>
     <versions>
       <version>1.2.11</version>
       <version>1.2.12</version>
@@ -24,7 +24,8 @@
       <version>1.6.0</version>
       <version>1.6.1</version>
       <version>1.6.2</version>
+      <version>1.6.5</version>
     </versions>
-    <lastUpdated>20261105031037</lastUpdated>
+    <lastUpdated>20261123021059</lastUpdated>
   </versioning>
 </metadata>

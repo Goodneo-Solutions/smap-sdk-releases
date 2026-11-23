@@ -36,6 +36,9 @@ import ca.superroute.smap.SMapLine
 import ca.superroute.smap.SMapLineOptions
 import ca.superroute.smap.SMapOfflineRegion
 import ca.superroute.smap.SMapOptions
+import ca.superroute.smap.SMapIndoorOptions
+import ca.superroute.smap.SMapIndoorRef
+import ca.superroute.smap.SMapIndoorSource
 import ca.superroute.smap.SMapPoint
 import ca.superroute.smap.SMapPointOptions
 import ca.superroute.smap.SMapPolygon
@@ -121,6 +124,7 @@ class MainActivity : Activity() {
         addLayers()
         addGaps()
         addGaps150()
+        addIndoorDemo()
         addTools()
         map.ready { Toast.makeText(this, "Map ready", Toast.LENGTH_SHORT).show(); check() }
     }
@@ -467,6 +471,30 @@ class MainActivity : Activity() {
      * The 1.5.0 calls G25–G37: an SDF image in each point's colour, a glyph image, circles in metres with a hover
      * look, labels with priority, the unavailable event, and a few geometry answers in the log.
      */
+    // The indoor layer: a small site of two levels with its level control, and a point shown only on level L1.
+    private fun addIndoorDemo() {
+        fun square(w: Double, s: Double, e: Double, n: Double) = "[[[$w,$s],[$e,$s],[$e,$n],[$w,$n],[$w,$s]]]"
+        fun poly(c: String, props: String) = """{"type":"Feature","geometry":{"type":"Polygon","coordinates":$c},"properties":$props}"""
+        val anchor = """{"lat":43.65,"lon":-79.38,"rotation_deg":0,"scale":1}"""
+        val layer = """{"type":"FeatureCollection","frame":"wgs84","site":"demo","version":1,
+            "levels":[{"id":"L0","ordinal":0,"kind":"indoor","building":"main","anchor":$anchor},{"id":"L1","ordinal":1,"kind":"indoor","building":"main","anchor":$anchor}],
+            "features":[${poly(square(-79.3805, 43.6495, -79.3795, 43.6505), """{"layer":"level","level":"L0","ordinal":0}""")},
+            ${poly(square(-79.3802, 43.6498, -79.3801, 43.6499), """{"layer":"obstacle","level":"L0","ordinal":0,"type":"shelf","ref":"A-01"}""")},
+            ${poly(square(-79.3800, 43.6498, -79.3799, 43.6502), """{"layer":"obstacle","level":"L0","ordinal":0,"type":"wall","ref":null}""")},
+            ${poly(square(-79.3803, 43.6497, -79.3797, 43.6503), """{"layer":"level","level":"L1","ordinal":1}""")},
+            ${poly(square(-79.3802, 43.6500, -79.3801, 43.6501), """{"layer":"obstacle","level":"L1","ordinal":1,"type":"rack","ref":"R-7"}""")}]}"""
+        scope.launch {
+            try {
+                map.addIndoor("demo", SMapIndoorSource.GeoJson(layer), SMapIndoorOptions(
+                    onClick = { f, _ -> Toast.makeText(this@MainActivity, f.getAsJsonObject("properties")?.get("ref")?.toString() ?: "level", Toast.LENGTH_SHORT).show() },
+                ))
+                map.addPoints("indoor-dot", listOf(SMapPoint(43.65, -79.38)), SMapPointOptions(color = "#ef4444", indoor = SMapIndoorRef("demo", "L1")))
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, e.message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun addGaps150() {
         map.addImage("drop", sdfDrop(), SMapImageOptions(sdf = true))
         map.addGlyphImage("star", SMapGlyph("★", sizeDp = 18f, color = "#ffffff", background = "#0ea5e9"))
