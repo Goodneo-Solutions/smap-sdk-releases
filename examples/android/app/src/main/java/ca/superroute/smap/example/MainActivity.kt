@@ -108,11 +108,17 @@ class MainActivity : Activity() {
                 zoom = 11.0,
                 onError = { e -> runOnUiThread { Toast.makeText(this, e.message, Toast.LENGTH_SHORT).show() } },
                 tools = SMapToolsOptions(hidden = savedTools(), onChange = { change -> saveTools(change.hidden) }),
+                // Road attributes: the categories and detail chosen last time (the SDK stores nothing).
+                roadAttributes = ca.superroute.smap.SMapRoadAttributesOptions(groups = savedRoadAttributes(), detail = roadDetail()),
                 // `adb shell am start … --es renderer srender`: drawn by sRender where this build carries it.
                 renderer = if (intent?.getStringExtra("renderer") == "srender") ca.superroute.smap.SMapRenderer.SRENDER else ca.superroute.smap.SMapRenderer.MAPLIBRE,
             ),
         )
         map.onCreate(savedInstanceState)
+        map.onRoadAttributesChange { e ->
+            getSharedPreferences("smap-example", MODE_PRIVATE).edit()
+                .putString("road-attributes", e.groups.joinToString(",")).putString("road-detail", e.detail).apply()
+        }
 
         // The bar above the map, so the map's top corners (where the tools sit) stay in view.
         val root = LinearLayout(this)
@@ -303,6 +309,11 @@ class MainActivity : Activity() {
         // The stops layer as a tool: its toggle hides and shows the points.
         map.addTool("stops", "stops", getString(R.string.stops_label))
     }
+
+    private fun savedRoadAttributes(): List<String>? =
+        getSharedPreferences("smap-example", MODE_PRIVATE).getString("road-attributes", null)?.split(',')?.filter { it.isNotEmpty() }
+
+    private fun roadDetail(): String = getSharedPreferences("smap-example", MODE_PRIVATE).getString("road-detail", null) ?: "standard"
 
     private fun savedTools(): Set<String> =
         getSharedPreferences("smap-example", MODE_PRIVATE).getStringSet("hidden-tools", emptySet()) ?: emptySet()
