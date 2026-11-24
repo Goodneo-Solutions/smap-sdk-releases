@@ -238,7 +238,7 @@
 			repositoryURL = "https://github.com/Goodneo-Solutions/smap-sdk-releases";
 			requirement = {
 				kind = exactVersion;
-				version = 1.6.8;
+				version = 1.6.9;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
