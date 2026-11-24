@@ -110,6 +110,8 @@ class MainActivity : Activity() {
                 tools = SMapToolsOptions(hidden = savedTools(), onChange = { change -> saveTools(change.hidden) }),
                 // Road attributes: the categories and detail chosen last time (the SDK stores nothing).
                 roadAttributes = ca.superroute.smap.SMapRoadAttributesOptions(groups = savedRoadAttributes(), detail = roadDetail()),
+                // Traffic: hidden until its button is pressed; an app's getToken asks its own server for a new token.
+                traffic = BuildConfig.SMAP_TRAFFIC_TOKEN.ifEmpty { null }?.let { t -> ca.superroute.smap.SMapTrafficOptions(getToken = { t }) },
                 // `adb shell am start … --es renderer srender`: drawn by sRender where this build carries it.
                 renderer = if (intent?.getStringExtra("renderer") == "srender") ca.superroute.smap.SMapRenderer.SRENDER else ca.superroute.smap.SMapRenderer.MAPLIBRE,
             ),

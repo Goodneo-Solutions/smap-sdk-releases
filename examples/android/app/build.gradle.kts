@@ -7,6 +7,8 @@ plugins {
 val smapToken: String = (project.findProperty("smapToken") as String?) ?: ""
 // Or a map key whose allowlist names this app: `-PsmapApiKey=smk_...` (empty = no key).
 val smapApiKey: String = (project.findProperty("smapApiKey") as String?) ?: ""
+// A token with the capability `traffic`, for the traffic layer: `-PsmapTrafficToken=sm1....` (empty = no traffic layer).
+val smapTrafficToken: String = (project.findProperty("smapTrafficToken") as String?) ?: ""
 // Another map service, e.g. a local node: `-PsmapBaseUrl=http://...` (empty = the public one).
 val smapBaseUrl: String = (project.findProperty("smapBaseUrl") as String?) ?: ""
 
@@ -22,6 +24,7 @@ android {
         versionName = "1.0.0"
         buildConfigField("String", "SMAP_TOKEN", "\"$smapToken\"")
         buildConfigField("String", "SMAP_API_KEY", "\"$smapApiKey\"")
+        buildConfigField("String", "SMAP_TRAFFIC_TOKEN", "\"$smapTrafficToken\"")
         buildConfigField("String", "SMAP_BASE_URL", "\"$smapBaseUrl\"")
     }
 
@@ -45,5 +48,5 @@ kotlin {
 }
 
 dependencies {
-    implementation("ca.superroute:smap:1.6.9")
+    implementation("ca.superroute:smap:1.6.10")
 }
