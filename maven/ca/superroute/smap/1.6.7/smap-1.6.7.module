@@ -1,0 +1,159 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "ca.superroute",
+    "module": "smap",
+    "version": "1.6.7",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.14.3"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseVariantReleaseApiPublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.maplibre.gl",
+          "module": "android-sdk",
+          "version": {
+            "requires": "13.6.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-android",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "smap-1.6.7.aar",
+          "url": "smap-1.6.7.aar",
+          "size": 1514446,
+          "sha512": "879d3a0f169c138f1724d565776fc38a6781ede00f7ef5ff1e1fa3270557c33e47709c2c097880a1260d9a10eb6b3b894f4c73e0cde55a69d998fd94553c39b9",
+          "sha256": "55c35b5008d5daa4f0da9be7589780b0302773b60c2731d266444d2835a13e2a",
+          "sha1": "dceca0a73f9cb7f39f938e927f30a9c98ca0f3c2",
+          "md5": "7d1429f4ec73fb427da9e99524f89388"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseRuntimePublication",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.libraryelements": "aar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "com.google.code.gson",
+          "module": "gson",
+          "version": {
+            "requires": "2.10.1"
+          }
+        },
+        {
+          "group": "com.squareup.okhttp3",
+          "module": "okhttp",
+          "version": {
+            "requires": "4.12.0"
+          }
+        },
+        {
+          "group": "com.google.android.filament",
+          "module": "filament-android",
+          "version": {
+            "requires": "1.71.5"
+          }
+        },
+        {
+          "group": "com.google.android.filament",
+          "module": "gltfio-android",
+          "version": {
+            "requires": "1.71.5"
+          }
+        },
+        {
+          "group": "com.google.android.filament",
+          "module": "filament-utils-android",
+          "version": {
+            "requires": "1.71.5"
+          }
+        },
+        {
+          "group": "org.maplibre.gl",
+          "module": "android-sdk",
+          "version": {
+            "requires": "13.6.1"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-android",
+          "version": {
+            "requires": "1.10.2"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "smap-1.6.7.aar",
+          "url": "smap-1.6.7.aar",
+          "size": 1514446,
+          "sha512": "879d3a0f169c138f1724d565776fc38a6781ede00f7ef5ff1e1fa3270557c33e47709c2c097880a1260d9a10eb6b3b894f4c73e0cde55a69d998fd94553c39b9",
+          "sha256": "55c35b5008d5daa4f0da9be7589780b0302773b60c2731d266444d2835a13e2a",
+          "sha1": "dceca0a73f9cb7f39f938e927f30a9c98ca0f3c2",
+          "md5": "7d1429f4ec73fb427da9e99524f89388"
+        }
+      ]
+    },
+    {
+      "name": "releaseVariantReleaseSourcePublication",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.usage": "java-runtime"
+      },
+      "files": [
+        {
+          "name": "smap-1.6.7-sources.jar",
+          "url": "smap-1.6.7-sources.jar",
+          "size": 287902,
+          "sha512": "b1ee00932a4656c8fbd2e9e319ef66951adbb26696a2563b49bb341f2b967ab8136a6bc30d4b7e0fb5969e90fc521dcaea85d4117555636a873ddc66b236a03f",
+          "sha256": "3a34716f4ec7294799ffd835b6806b90f760a8e3609a12d5cd8221b052ce9a23",
+          "sha1": "4e1844188adcf9987b47e74f55d1b8bb5a80cd5d",
+          "md5": "bd8b8210637d7035d3a6ca0a505ac45e"
+        }
+      ]
+    }
+  ]
+}
