@@ -48,5 +48,5 @@ kotlin {
 }
 
 dependencies {
-    implementation("ca.superroute:smap:1.6.10")
+    implementation("ca.superroute:smap:1.6.11")
 }
